@@ -47,6 +47,8 @@ services:
     command: >
       sh -c "python manage.py collectstatic --noinput &&
              gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 60"
+    volumes:
+      - backend_media:/app/media
 
   backend-migrate:
     build:
@@ -71,6 +73,8 @@ services:
         condition: service_started
     command: >
       sh -c "python manage.py migrate --noinput"
+    volumes:
+      - backend_media:/app/media
 
   frontend:
     build:
@@ -87,7 +91,9 @@ services:
       - "443:443"
     volumes:
       - ./deploy/certs:/etc/nginx/certs:ro
+      - backend_media:/mediafiles:ro
 
 volumes:
   postgres_data:
   redis_data:
+  backend_media:
