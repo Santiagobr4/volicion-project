@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+/* Enable manual dark mode switching. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+body {
+  letter-spacing: 0.01em;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 180ms ease-out;
+}
