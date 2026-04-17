@@ -25,6 +25,21 @@ except ImportError:  # pragma: no cover - fallback for local minimal setups
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+def _normalize_samesite(value, setting_name):
+    """Normalize SameSite env values and fail fast for invalid values."""
+    normalized = (value or '').strip().lower()
+    allowed = {
+        'lax': 'Lax',
+        'strict': 'Strict',
+        'none': 'None',
+    }
+    if normalized in allowed:
+        return allowed[normalized]
+    raise ImproperlyConfigured(
+        f"{setting_name} must be one of: Lax, Strict, None. Got: {value!r}"
+    )
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
@@ -186,9 +201,12 @@ SIMPLE_JWT = {
 AUTH_REFRESH_COOKIE = os.getenv('AUTH_REFRESH_COOKIE', 'habit_tracker_refresh')
 AUTH_REFRESH_COOKIE_PATH = os.getenv('AUTH_REFRESH_COOKIE_PATH', '/')
 AUTH_REFRESH_COOKIE_MAX_AGE = int(os.getenv('AUTH_REFRESH_COOKIE_MAX_AGE', str(7 * 24 * 60 * 60)))
-AUTH_REFRESH_COOKIE_SAMESITE = os.getenv(
+AUTH_REFRESH_COOKIE_SAMESITE = _normalize_samesite(
+    os.getenv(
+        'AUTH_REFRESH_COOKIE_SAMESITE',
+        'Strict' if ENV == 'production' else 'Lax',
+    ),
     'AUTH_REFRESH_COOKIE_SAMESITE',
-    'Strict' if ENV == 'production' else 'Lax',
 )
 AUTH_REFRESH_COOKIE_SECURE = os.getenv('AUTH_REFRESH_COOKIE_SECURE', 'false').lower() == 'true'
 AUTH_REFRESH_COOKIE_HTTP_ONLY = True
@@ -229,7 +247,10 @@ if ENV == 'production':
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = 'DENY'
     AUTH_REFRESH_COOKIE_SECURE = True
-    AUTH_REFRESH_COOKIE_SAMESITE = os.getenv('AUTH_REFRESH_COOKIE_SAMESITE', 'Strict')
+    AUTH_REFRESH_COOKIE_SAMESITE = _normalize_samesite(
+        os.getenv('AUTH_REFRESH_COOKIE_SAMESITE', 'Strict'),
+        'AUTH_REFRESH_COOKIE_SAMESITE',
+    )
 
 if ENV == 'production' and not ALLOWED_HOSTS:
     raise ImproperlyConfigured('ALLOWED_HOSTS must be set in production.')
