@@ -120,3 +120,23 @@ docker compose up -d --build
 ```
 
 If migrations were added, the `backend-migrate` service will run them before backend starts.
+
+## 10. Avatar media in production
+
+Profile images are served by Nginx from `/media/avatars/` using a shared Docker volume.
+
+Checklist:
+
+- `backend` writes uploads to `/app/media/avatars/`
+- `frontend` mounts the same volume as `/mediafiles`
+- Nginx serves `location ^~ /media/avatars/` with `alias /mediafiles/avatars/`
+
+Quick verification commands:
+
+```bash
+docker compose exec backend ls -lah /app/media/avatars
+docker compose exec frontend ls -lah /mediafiles/avatars
+curl -I https://app.example.com/media/avatars/<filename>.jpg
+```
+
+Expected result: the image URL returns `HTTP/2 200`.

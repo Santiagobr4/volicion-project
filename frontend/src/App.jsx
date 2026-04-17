@@ -30,6 +30,8 @@ function App() {
   useEffect(() => {
     const root = document.documentElement;
 
+    document.title = "Volicion | Hábitos, disciplina y progreso";
+
     if (theme === "dark") {
       root.classList.add("dark");
     } else if (theme === "light") {
@@ -108,8 +110,11 @@ function App() {
     }`;
   };
 
-  const displayName =
-    profile?.first_name?.trim() || profile?.username || "Usuario";
+  const fullName = [profile?.first_name?.trim(), profile?.last_name?.trim()]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  const displayName = fullName || profile?.username || "Usuario";
   const avatarSrc = profile?.avatar_file_url || defaultAvatar;
   const todayLabel = new Intl.DateTimeFormat("es-419", {
     weekday: "short",
@@ -146,9 +151,9 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen overflow-x-clip bg-linear-to-b from-slate-100 to-slate-200 dark:from-slate-950 dark:to-slate-900 text-black dark:text-white p-3 sm:p-4 md:p-6 transition">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-6 rounded-3xl border border-slate-200/80 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur p-4 sm:p-5 shadow-sm">
+    <div className="overflow-x-clip text-black dark:text-white transition">
+      <div className="max-w-6xl mx-auto space-y-6">
+        <div className="rounded-3xl border border-slate-200/80 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur p-4 sm:p-5 shadow-sm">
           <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
             <div>
               <h1 className="text-3xl font-semibold tracking-tight">
