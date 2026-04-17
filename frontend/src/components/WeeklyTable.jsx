@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useHabits } from "../hooks/useHabits";
 import HabitRow from "./HabitRow";
+import HabitCardMobile from "./HabitCardMobile";
 import HabitModal from "./HabitModal";
 import ConfirmDialog from "./ConfirmDialog";
 import TrackerInsights from "./TrackerInsights";
@@ -95,6 +96,33 @@ export default function WeeklyTable({ onDataChanged }) {
     setDeleteId(null);
   };
 
+  const handleHabitUpdate = async (...args) => {
+    const result = await handleUpdate(...args);
+    if (!result?.success) {
+      showToast(
+        result?.message || "No pudimos actualizar el estado del hábito",
+        result?.type || "error",
+      );
+    }
+  };
+
+  const handleEditIntent = (habit) => {
+    if (!canManageHabits) {
+      showToast("Solo puedes editar o eliminar hábitos en domingo.", "error");
+      return;
+    }
+    setEditingHabit(habit);
+    setShowModal(true);
+  };
+
+  const handleDeleteIntent = (habit) => {
+    if (!canManageHabits) {
+      showToast("Solo puedes editar o eliminar hábitos en domingo.", "error");
+      return;
+    }
+    setDeleteId(habit.habit_id);
+  };
+
   return (
     <div className="rounded-3xl border border-slate-200/80 bg-white/90 dark:bg-slate-900/80 dark:border-slate-700 p-3 sm:p-4 md:p-6 shadow-sm overflow-hidden">
       <div className="mb-6 rounded-2xl border border-slate-200/80 dark:border-slate-700 bg-linear-to-r from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 p-3 sm:p-4">
@@ -167,89 +195,78 @@ export default function WeeklyTable({ onDataChanged }) {
       <div
         className={`transition-opacity duration-200 ${refreshing ? "opacity-65" : "opacity-100"}`}
       >
-        <div className="max-w-full overflow-x-auto pb-1">
-          <table className="w-full text-center border-separate border-spacing-y-2 min-w-[760px] lg:min-w-[920px]">
-            <thead>
-              <tr>
-                <th className="text-left px-2 sm:px-3 py-2 min-w-40 sm:min-w-52 text-slate-500 text-sm font-medium">
-                  Hábito
-                </th>
-
-                {dates.map((d) => (
-                  <th
-                    key={d}
-                    className="w-12 sm:w-14 md:w-16 cursor-default text-slate-500 text-sm font-medium py-2"
-                  >
-                    <div className="leading-tight">
-                      <p className="font-semibold text-slate-700 dark:text-slate-200 text-[12px]">
-                        {getIsoDayNameLong(d)}
-                      </p>
-                      <p className="text-[11px] text-slate-500">
-                        {getIsoDateLabel(d)}
-                      </p>
-                    </div>
-                  </th>
-                ))}
-
-                <th className="text-slate-500 text-sm font-medium">Racha</th>
-                <th className="text-slate-500 text-sm font-medium">Acciones</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {data.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={dates.length + 3}
-                    className="py-8 text-center text-slate-500 dark:text-slate-300"
-                  >
-                    Aún no tienes hábitos. Crea uno para empezar.
-                  </td>
-                </tr>
-              )}
-
+        {data.length === 0 ? (
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/60 p-5 text-center">
+            <p className="text-slate-600 dark:text-slate-300">
+              Aún no tienes hábitos. Crea uno para empezar.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="md:hidden space-y-3">
               {data.map((habit) => (
-                <HabitRow
-                  key={habit.habit_id}
+                <HabitCardMobile
+                  key={`mobile-${habit.habit_id}`}
                   habit={habit}
                   dates={dates}
                   canManageHabits={canManageHabits}
-                  onUpdate={async (...args) => {
-                    const result = await handleUpdate(...args);
-                    if (!result?.success) {
-                      showToast(
-                        result?.message ||
-                          "No pudimos actualizar el estado del hábito",
-                        result?.type || "error",
-                      );
-                    }
-                  }}
-                  onEdit={(h) => {
-                    if (!canManageHabits) {
-                      showToast(
-                        "Solo puedes editar o eliminar hábitos en domingo.",
-                        "error",
-                      );
-                      return;
-                    }
-                    setEditingHabit(h);
-                    setShowModal(true);
-                  }}
-                  onDelete={(h) => {
-                    if (!canManageHabits) {
-                      showToast(
-                        "Solo puedes editar o eliminar hábitos en domingo.",
-                        "error",
-                      );
-                      return;
-                    }
-                    setDeleteId(h.habit_id);
-                  }}
+                  onUpdate={handleHabitUpdate}
+                  onEdit={handleEditIntent}
+                  onDelete={handleDeleteIntent}
                 />
               ))}
-            </tbody>
-          </table>
-        </div>
+            </div>
+
+            <div className="hidden md:block max-w-full overflow-x-auto pb-1">
+              <table className="w-full text-center border-separate border-spacing-y-2 min-w-[760px] lg:min-w-[920px]">
+                <thead>
+                  <tr>
+                    <th className="text-left px-2 sm:px-3 py-2 min-w-40 sm:min-w-52 text-slate-500 text-sm font-medium">
+                      Hábito
+                    </th>
+
+                    {dates.map((d) => (
+                      <th
+                        key={d}
+                        className="w-12 sm:w-14 md:w-16 cursor-default text-slate-500 text-sm font-medium py-2"
+                      >
+                        <div className="leading-tight">
+                          <p className="font-semibold text-slate-700 dark:text-slate-200 text-[12px]">
+                            {getIsoDayNameLong(d)}
+                          </p>
+                          <p className="text-[11px] text-slate-500">
+                            {getIsoDateLabel(d)}
+                          </p>
+                        </div>
+                      </th>
+                    ))}
+
+                    <th className="text-slate-500 text-sm font-medium">
+                      Racha
+                    </th>
+                    <th className="text-slate-500 text-sm font-medium">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {data.map((habit) => (
+                    <HabitRow
+                      key={habit.habit_id}
+                      habit={habit}
+                      dates={dates}
+                      canManageHabits={canManageHabits}
+                      onUpdate={handleHabitUpdate}
+                      onEdit={handleEditIntent}
+                      onDelete={handleDeleteIntent}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
 
       {(showModal || editingHabit) && (

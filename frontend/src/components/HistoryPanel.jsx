@@ -323,99 +323,101 @@ export default function HistoryPanel({ refreshVersion = 0 }) {
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-6 min-w-0">
-          <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 min-w-0">
-            <h3 className="font-medium mb-3">
-              Tendencia diaria de cumplimiento
-            </h3>
-            <div ref={dailyContainerRef} className="h-64 min-w-0">
-              <LineChart
-                width={Math.max(220, dailyWidth)}
-                height={256}
-                data={chartData.daily}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#d1d5db" />
-                <XAxis dataKey="label" />
-                <YAxis domain={[0, 100]} />
-                <Tooltip />
-                <Line
-                  type="monotone"
-                  dataKey="completion"
-                  stroke="#0f172a"
-                  strokeWidth={2}
-                  dot={(props) => {
-                    const { cx, cy, payload } = props;
-                    if (
-                      payload?.completion === null ||
-                      payload?.completion === undefined
-                    ) {
-                      return null;
-                    }
-
-                    return (
-                      <circle
-                        cx={cx}
-                        cy={cy}
-                        r={3}
-                        fill={getCompletionColor(payload.completion)}
-                      />
-                    );
-                  }}
-                />
-              </LineChart>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 min-w-0">
+        {hasAnyMetricData && (
+          <div className="grid grid-cols-1 gap-6 min-w-0">
             <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 min-w-0">
-              <h3 className="font-medium mb-3">Comparativa semanal</h3>
-              <div ref={weeklyContainerRef} className="h-56 min-w-0">
-                <BarChart
-                  width={Math.max(220, weeklyWidth)}
-                  height={224}
-                  data={chartData.weekly}
+              <h3 className="font-medium mb-3">
+                Tendencia diaria de cumplimiento
+              </h3>
+              <div ref={dailyContainerRef} className="h-64 min-w-0">
+                <LineChart
+                  width={Math.max(220, dailyWidth)}
+                  height={256}
+                  data={chartData.daily}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="#d1d5db" />
                   <XAxis dataKey="label" />
                   <YAxis domain={[0, 100]} />
                   <Tooltip />
-                  <Bar dataKey="completion" radius={[6, 6, 0, 0]}>
-                    {chartData.weekly.map((entry, index) => (
-                      <Cell
-                        key={`weekly-cell-${entry.label}-${index}`}
-                        fill={getCompletionColor(entry.completion)}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
+                  <Line
+                    type="monotone"
+                    dataKey="completion"
+                    stroke="#0f172a"
+                    strokeWidth={2}
+                    dot={(props) => {
+                      const { cx, cy, payload } = props;
+                      if (
+                        payload?.completion === null ||
+                        payload?.completion === undefined
+                      ) {
+                        return null;
+                      }
+
+                      return (
+                        <circle
+                          cx={cx}
+                          cy={cy}
+                          r={3}
+                          fill={getCompletionColor(payload.completion)}
+                        />
+                      );
+                    }}
+                  />
+                </LineChart>
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 min-w-0">
-              <h3 className="font-medium mb-3">Comparativa mensual</h3>
-              <div ref={monthlyContainerRef} className="h-56 min-w-0">
-                <BarChart
-                  width={Math.max(220, monthlyWidth)}
-                  height={224}
-                  data={chartData.monthly}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#d1d5db" />
-                  <XAxis dataKey="label" />
-                  <YAxis domain={[0, 100]} />
-                  <Tooltip />
-                  <Bar dataKey="completion" radius={[6, 6, 0, 0]}>
-                    {chartData.monthly.map((entry, index) => (
-                      <Cell
-                        key={`monthly-cell-${entry.label}-${index}`}
-                        fill={getCompletionColor(entry.completion)}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 min-w-0">
+              <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 min-w-0">
+                <h3 className="font-medium mb-3">Comparativa semanal</h3>
+                <div ref={weeklyContainerRef} className="h-56 min-w-0">
+                  <BarChart
+                    width={Math.max(220, weeklyWidth)}
+                    height={224}
+                    data={chartData.weekly}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#d1d5db" />
+                    <XAxis dataKey="label" />
+                    <YAxis domain={[0, 100]} />
+                    <Tooltip />
+                    <Bar dataKey="completion" radius={[6, 6, 0, 0]}>
+                      {chartData.weekly.map((entry, index) => (
+                        <Cell
+                          key={`weekly-cell-${entry.label}-${index}`}
+                          fill={getCompletionColor(entry.completion)}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 min-w-0">
+                <h3 className="font-medium mb-3">Comparativa mensual</h3>
+                <div ref={monthlyContainerRef} className="h-56 min-w-0">
+                  <BarChart
+                    width={Math.max(220, monthlyWidth)}
+                    height={224}
+                    data={chartData.monthly}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#d1d5db" />
+                    <XAxis dataKey="label" />
+                    <YAxis domain={[0, 100]} />
+                    <Tooltip />
+                    <Bar dataKey="completion" radius={[6, 6, 0, 0]}>
+                      {chartData.monthly.map((entry, index) => (
+                        <Cell
+                          key={`monthly-cell-${entry.label}-${index}`}
+                          fill={getCompletionColor(entry.completion)}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         <div className="mt-6 rounded-2xl border border-slate-200/80 dark:border-slate-700 bg-white/70 dark:bg-slate-900/60 p-4">
           <div className="flex flex-wrap items-end justify-between gap-2 mb-3">

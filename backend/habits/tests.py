@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.conf import settings
 from django.utils import timezone
 from rest_framework import status
@@ -406,6 +407,65 @@ class HabitApiTests(APITestCase):
 			self.assertIn('daily_completion', response.data['results'][0])
 			self.assertIn('weekly_completion', response.data['results'][0])
 			self.assertIn('monthly_completion', response.data['results'][0])
+
+	def test_leaderboard_includes_users_with_zero_completion(self):
+		self.authenticate('alice', 'Passw0rd123')
+		cache.clear()
+
+		response = self.client.get('/api/habits/leaderboard/?days=30')
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+		usernames = [row['username'] for row in response.data['results']]
+		self.assertIn('alice', usernames)
+		self.assertIn('bob', usernames)
+
+		for row in response.data['results']:
+			if row['username'] == 'alice' or row['username'] == 'bob':
+				self.assertEqual(row['daily_completion'], 0)
+				self.assertEqual(row['weekly_completion'], 0)
+				self.assertEqual(row['monthly_completion'], 0)
+				self.assertEqual(row['historical_completion'], 0)
+
+	def test_leaderboard_highlights_use_top_score_per_metric(self):
+		self.authenticate('alice', 'Passw0rd123')
+		cache.clear()
+
+		self.user_1.date_joined = timezone.now() - timedelta(days=2)
+		self.user_1.save(update_fields=['date_joined'])
+		self.user_2.date_joined = timezone.now() - timedelta(days=10)
+		self.user_2.save(update_fields=['date_joined'])
+
+		self.habit_user_1.days = [
+			'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'
+		]
+		self.habit_user_1.start_date = self.today - timedelta(days=2)
+		self.habit_user_1.save(update_fields=['days', 'start_date'])
+
+		HabitLog.objects.create(
+			habit=self.habit_user_1,
+			date=str(self.today),
+			status='done',
+		)
+
+		self.habit_user_2.days = [
+			'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'
+		]
+		self.habit_user_2.start_date = self.today - timedelta(days=10)
+		self.habit_user_2.save(update_fields=['days', 'start_date'])
+
+		for offset in range(1, 11):
+			HabitLog.objects.create(
+				habit=self.habit_user_2,
+				date=str(self.today - timedelta(days=offset)),
+				status='done',
+			)
+
+		response = self.client.get('/api/habits/leaderboard/?days=30')
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+		historical_highlight = response.data['highlights']['historical']
+		self.assertEqual(historical_highlight['score'], 91)
+		self.assertEqual(historical_highlight['leaders'][0]['username'], 'bob')
 
 	def test_profile_remove_avatar_clears_avatar_url(self):
 		self.authenticate('alice', 'Passw0rd123')

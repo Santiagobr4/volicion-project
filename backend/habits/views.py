@@ -761,15 +761,14 @@ class HabitViewSet(viewsets.ModelViewSet):
 
                 historical_completion = _overall_completion(all_daily_rows) or 0
 
-                # Only include users with some activity
-                if daily_completion or weekly_completion or monthly_completion or historical_completion:
-                    user_metrics.append({
-                        'user': user,
-                        'daily_completion': daily_completion or 0,
-                        'weekly_completion': weekly_completion or 0,
-                        'monthly_completion': monthly_completion or 0,
-                        'historical_completion': historical_completion or 0,
-                    })
+                # Include users with active habits even when all metrics are 0%.
+                user_metrics.append({
+                    'user': user,
+                    'daily_completion': daily_completion or 0,
+                    'weekly_completion': weekly_completion or 0,
+                    'monthly_completion': monthly_completion or 0,
+                    'historical_completion': historical_completion or 0,
+                })
 
             # Sort by completion metrics (daily primary, then weekly, monthly, historical as tiebreaker)
             user_metrics.sort(
@@ -810,7 +809,7 @@ class HabitViewSet(viewsets.ModelViewSet):
                     metric_leaders[metric_key] = {'score': None, 'leaders': []}
                     continue
 
-                top_score = user_metrics[0][metric_key]
+                top_score = max(metric[metric_key] for metric in user_metrics)
                 leaders = [
                     m for m in user_metrics
                     if abs(m[metric_key] - top_score) < 0.5
