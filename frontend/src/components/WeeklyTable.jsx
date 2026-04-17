@@ -96,8 +96,8 @@ export default function WeeklyTable({ onDataChanged }) {
   };
 
   return (
-    <div className="rounded-3xl border border-slate-200/80 bg-white/90 dark:bg-slate-900/80 dark:border-slate-700 p-6 shadow-sm overflow-hidden">
-      <div className="mb-6 rounded-2xl border border-slate-200/80 dark:border-slate-700 bg-linear-to-r from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 p-4">
+    <div className="rounded-3xl border border-slate-200/80 bg-white/90 dark:bg-slate-900/80 dark:border-slate-700 p-3 sm:p-4 md:p-6 shadow-sm overflow-hidden">
+      <div className="mb-6 rounded-2xl border border-slate-200/80 dark:border-slate-700 bg-linear-to-r from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 p-3 sm:p-4">
         <div className="flex flex-wrap justify-between items-center gap-3">
           <div>
             <p className="text-xs uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
@@ -106,7 +106,7 @@ export default function WeeklyTable({ onDataChanged }) {
             <h2 className="text-xl font-semibold mt-1">Seguimiento semanal</h2>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="w-full sm:w-auto flex flex-wrap sm:flex-nowrap items-center gap-2">
             {refreshing && (
               <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/70">
                 <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-300 border-t-slate-700 dark:border-slate-600 dark:border-t-slate-200 animate-spin" />
@@ -121,7 +121,7 @@ export default function WeeklyTable({ onDataChanged }) {
                 setEditingHabit(null);
                 setShowModal(true);
               }}
-              className="px-4 py-2 rounded-xl bg-slate-900 text-white dark:bg-slate-200 dark:text-slate-900 hover:opacity-90 cursor-pointer"
+              className="w-full sm:w-auto px-4 py-2 rounded-xl bg-slate-900 text-white dark:bg-slate-200 dark:text-slate-900 hover:opacity-90 cursor-pointer"
             >
               Nuevo hábito
             </button>
@@ -131,7 +131,7 @@ export default function WeeklyTable({ onDataChanged }) {
             >
               <button
                 onClick={goToCurrentWeek}
-                className="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/70 dark:bg-slate-800/70 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer whitespace-nowrap"
+                className="w-full sm:w-auto px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/70 dark:bg-slate-800/70 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer whitespace-nowrap"
               >
                 Semana actual
               </button>
@@ -167,18 +167,18 @@ export default function WeeklyTable({ onDataChanged }) {
       <div
         className={`transition-opacity duration-200 ${refreshing ? "opacity-65" : "opacity-100"}`}
       >
-        <div className="overflow-x-auto pb-1">
-          <table className="w-full text-center border-separate border-spacing-y-2 min-w-230">
+        <div className="max-w-full overflow-x-auto pb-1">
+          <table className="w-full text-center border-separate border-spacing-y-2 min-w-[760px] lg:min-w-[920px]">
             <thead>
               <tr>
-                <th className="text-left px-3 py-2 min-w-52 text-slate-500 text-sm font-medium">
+                <th className="text-left px-2 sm:px-3 py-2 min-w-40 sm:min-w-52 text-slate-500 text-sm font-medium">
                   Hábito
                 </th>
 
                 {dates.map((d) => (
                   <th
                     key={d}
-                    className="w-16 cursor-default text-slate-500 text-sm font-medium py-2"
+                    className="w-12 sm:w-14 md:w-16 cursor-default text-slate-500 text-sm font-medium py-2"
                   >
                     <div className="leading-tight">
                       <p className="font-semibold text-slate-700 dark:text-slate-200 text-[12px]">

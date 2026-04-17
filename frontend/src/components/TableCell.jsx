@@ -26,7 +26,7 @@ export default function TableCell({ status, onClick }) {
           ? "Día no aplicable"
           : `Actualizar estado: ${statusLabel[status] || status}`
       }
-      className={`w-12 h-10 rounded-lg flex items-center justify-center transition shadow-sm ${
+      className={`w-10 h-9 sm:w-12 sm:h-10 rounded-lg flex items-center justify-center text-sm sm:text-base transition shadow-sm ${
         isDisabled ? "cursor-not-allowed" : "cursor-pointer hover:scale-105"
       } ${getStatusStyle(status)}`}
     >

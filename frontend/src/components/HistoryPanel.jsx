@@ -249,8 +249,8 @@ export default function HistoryPanel({ refreshVersion = 0 }) {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200/80 bg-white/90 dark:bg-slate-900/80 dark:border-slate-700 p-6 shadow-sm overflow-hidden">
-        <div className="mb-6 rounded-2xl border border-slate-200/80 dark:border-slate-700 bg-linear-to-r from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 p-4">
+      <div className="rounded-3xl border border-slate-200/80 bg-white/90 dark:bg-slate-900/80 dark:border-slate-700 p-3 sm:p-4 md:p-6 shadow-sm overflow-hidden">
+        <div className="mb-6 rounded-2xl border border-slate-200/80 dark:border-slate-700 bg-linear-to-r from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 p-3 sm:p-4">
           <div className="flex flex-wrap justify-between items-center gap-3">
             <div>
               <p className="text-xs uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
@@ -261,13 +261,13 @@ export default function HistoryPanel({ refreshVersion = 0 }) {
               </h2>
             </div>
 
-            <div className="inline-flex rounded-xl border border-slate-300 dark:border-slate-600 p-1 bg-slate-100/70 dark:bg-slate-800/80">
+            <div className="inline-flex rounded-xl border border-slate-300 dark:border-slate-600 p-1 bg-slate-100/70 dark:bg-slate-800/80 overflow-x-auto">
               {RANGE_OPTIONS.map((option) => (
                 <button
                   key={option}
                   type="button"
                   onClick={() => setDays(option)}
-                  className={`px-3 py-1.5 rounded-lg text-sm transition cursor-pointer ${
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-sm transition whitespace-nowrap cursor-pointer ${
                     days === option
                       ? "bg-slate-900 text-white dark:bg-slate-200 dark:text-slate-900"
                       : "text-slate-600 dark:text-slate-300"
@@ -330,7 +330,7 @@ export default function HistoryPanel({ refreshVersion = 0 }) {
             </h3>
             <div ref={dailyContainerRef} className="h-64 min-w-0">
               <LineChart
-                width={Math.max(320, dailyWidth)}
+                width={Math.max(220, dailyWidth)}
                 height={256}
                 data={chartData.daily}
               >
@@ -371,7 +371,7 @@ export default function HistoryPanel({ refreshVersion = 0 }) {
               <h3 className="font-medium mb-3">Comparativa semanal</h3>
               <div ref={weeklyContainerRef} className="h-56 min-w-0">
                 <BarChart
-                  width={Math.max(320, weeklyWidth)}
+                  width={Math.max(220, weeklyWidth)}
                   height={224}
                   data={chartData.weekly}
                 >
@@ -395,7 +395,7 @@ export default function HistoryPanel({ refreshVersion = 0 }) {
               <h3 className="font-medium mb-3">Comparativa mensual</h3>
               <div ref={monthlyContainerRef} className="h-56 min-w-0">
                 <BarChart
-                  width={Math.max(320, monthlyWidth)}
+                  width={Math.max(220, monthlyWidth)}
                   height={224}
                   data={chartData.monthly}
                 >

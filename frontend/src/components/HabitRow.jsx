@@ -10,8 +10,8 @@ export default function HabitRow({
 }) {
   return (
     <tr className="bg-white/70 dark:bg-slate-800/60 rounded-xl">
-      <td className="text-left px-3 py-3 font-medium min-w-52">
-        <span>{habit.name}</span>
+      <td className="text-left px-2 sm:px-3 py-3 font-medium min-w-40 sm:min-w-52">
+        <span className="break-words">{habit.name}</span>
       </td>
 
       {dates.map((date) => (
@@ -33,11 +33,11 @@ export default function HabitRow({
       </td>
 
       <td>
-        <div className="flex items-center justify-center gap-2">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 sm:px-0">
           <button
             onClick={() => onEdit(habit)}
             disabled={!canManageHabits}
-            className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full sm:w-auto px-2 sm:px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-xs sm:text-sm hover:bg-slate-100 dark:hover:bg-slate-700 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             title={
               canManageHabits
                 ? "Editar"
@@ -50,7 +50,7 @@ export default function HabitRow({
           <button
             onClick={() => onDelete(habit)}
             disabled={!canManageHabits}
-            className="px-3 py-1.5 rounded-lg border border-red-300 text-red-600 dark:border-red-700 dark:text-red-400 text-sm hover:bg-red-50 dark:hover:bg-red-950/40 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full sm:w-auto px-2 sm:px-3 py-1.5 rounded-lg border border-red-300 text-red-600 dark:border-red-700 dark:text-red-400 text-xs sm:text-sm hover:bg-red-50 dark:hover:bg-red-950/40 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             title={
               canManageHabits
                 ? "Eliminar"

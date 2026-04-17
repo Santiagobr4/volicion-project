@@ -165,8 +165,8 @@ export default function ProfilePanel({ onProfileChange }) {
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white/90 dark:bg-slate-900/80 dark:border-slate-700 p-6 shadow-sm">
-      <div className="mb-5 rounded-2xl border border-slate-200/80 dark:border-slate-700 bg-linear-to-r from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 p-4">
+    <div className="rounded-2xl border border-slate-200/80 bg-white/90 dark:bg-slate-900/80 dark:border-slate-700 p-3 sm:p-4 md:p-6 shadow-sm">
+      <div className="mb-5 rounded-2xl border border-slate-200/80 dark:border-slate-700 bg-linear-to-r from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 p-3 sm:p-4">
         <p className="text-xs uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
           Perfil
         </p>
@@ -174,19 +174,19 @@ export default function ProfilePanel({ onProfileChange }) {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="flex items-center gap-4 p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/60">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/60">
           <img
             src={avatarPreview || defaultAvatar}
             alt="Perfil"
             className="w-20 h-20 rounded-full object-cover border border-slate-300 dark:border-slate-600"
           />
 
-          <div className="flex-1">
+          <div className="flex-1 w-full min-w-0">
             <p className="text-sm text-slate-500 dark:text-slate-300">
               JPG, PNG o WEBP. Máximo 2 MB.
             </p>
 
-            <div className="mt-3 flex flex-wrap items-center gap-3">
+            <div className="mt-3 flex flex-wrap items-center gap-2 sm:gap-3">
               <button
                 type="button"
                 onClick={() => {

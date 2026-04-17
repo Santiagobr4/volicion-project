@@ -146,9 +146,9 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-slate-100 to-slate-200 dark:from-slate-950 dark:to-slate-900 text-black dark:text-white p-4 md:p-6 transition">
+    <div className="min-h-screen overflow-x-clip bg-linear-to-b from-slate-100 to-slate-200 dark:from-slate-950 dark:to-slate-900 text-black dark:text-white p-3 sm:p-4 md:p-6 transition">
       <div className="max-w-6xl mx-auto">
-        <div className="mb-6 rounded-3xl border border-slate-200/80 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur p-5 shadow-sm">
+        <div className="mb-6 rounded-3xl border border-slate-200/80 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur p-4 sm:p-5 shadow-sm">
           <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
             <div>
               <h1 className="text-3xl font-semibold tracking-tight">
@@ -159,7 +159,7 @@ function App() {
               </p>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setTheme("light")}
                 className={themeButtonClass("light")}
@@ -191,29 +191,29 @@ function App() {
 
         {isAuthenticated ? (
           <>
-            <div className="mb-4 flex items-center justify-between gap-2 rounded-2xl border border-slate-200/80 dark:border-slate-700 bg-white/90 dark:bg-slate-900/80 p-4 shadow-sm">
-              <div className="flex items-center gap-3">
+            <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-slate-200/80 dark:border-slate-700 bg-white/90 dark:bg-slate-900/80 p-3 sm:p-4 shadow-sm">
+              <div className="flex items-center gap-3 min-w-0">
                 <img
                   src={avatarSrc}
                   alt="Avatar de usuario"
                   className="w-12 h-12 rounded-full object-cover border border-slate-300 dark:border-slate-600"
                 />
 
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm text-slate-500 dark:text-slate-300">
                     Conectado como
                   </p>
-                  <p className="font-semibold">{displayName}</p>
+                  <p className="font-semibold truncate">{displayName}</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <p className="text-sm text-slate-500 dark:text-slate-300">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-300">
                   {todayLabel}
                 </p>
                 <button
                   onClick={() => setShowLogoutConfirm(true)}
-                  className="px-3 py-2 rounded-xl bg-red-500 text-white hover:bg-red-600 cursor-pointer"
+                  className="w-full sm:w-auto px-3 py-2 rounded-xl bg-red-500 text-white hover:bg-red-600 cursor-pointer"
                 >
                   Cerrar sesión
                 </button>

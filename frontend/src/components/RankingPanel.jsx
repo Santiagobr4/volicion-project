@@ -286,8 +286,8 @@ export default function RankingPanel({ refreshVersion = 0 }) {
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white/90 dark:bg-slate-900/80 dark:border-slate-700 p-6 shadow-sm">
-      <div className="mb-6 rounded-2xl border border-slate-200/80 dark:border-slate-700 bg-linear-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4">
+    <div className="rounded-2xl border border-slate-200/80 bg-white/90 dark:bg-slate-900/80 dark:border-slate-700 p-3 sm:p-4 md:p-6 shadow-sm">
+      <div className="mb-6 rounded-2xl border border-slate-200/80 dark:border-slate-700 bg-linear-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-3 sm:p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-xl font-semibold">Clasificación</h2>
 
@@ -317,8 +317,8 @@ export default function RankingPanel({ refreshVersion = 0 }) {
         ))}
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-155 text-left border-separate border-spacing-y-2">
+      <div className="max-w-full overflow-x-auto">
+        <table className="w-full min-w-[680px] text-left border-separate border-spacing-y-2">
           <thead>
             <tr className="text-slate-500 text-sm border-b border-slate-200 dark:border-slate-700">
               <th className="py-2">#</th>

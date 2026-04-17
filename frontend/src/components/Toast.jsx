@@ -20,9 +20,9 @@ export default function Toast({ message, type, onClose }) {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-4 left-3 right-3 sm:left-auto sm:right-6 sm:bottom-6 z-50">
       <div
-        className={`${colors[type]} text-white px-4 py-3 rounded-lg shadow-lg`}
+        className={`${colors[type]} text-white px-4 py-3 rounded-lg shadow-lg text-sm break-words max-w-full sm:max-w-sm`}
       >
         {message}
       </div>
