@@ -21,6 +21,14 @@ services:
     volumes:
       - redis_data:/data
 
+  backend-media-init:
+    image: busybox:1.36
+    restart: "no"
+    command:
+      ["sh", "-c", "mkdir -p /media/avatars && chown -R 1000:1000 /media"]
+    volumes:
+      - backend_media:/media
+
   backend:
     build:
       context: ./backend
@@ -42,6 +50,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      backend-media-init:
+        condition: service_completed_successfully
       backend-migrate:
         condition: service_completed_successfully
     command: >
@@ -71,6 +81,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      backend-media-init:
+        condition: service_completed_successfully
     command: >
       sh -c "python manage.py migrate --noinput"
     volumes:

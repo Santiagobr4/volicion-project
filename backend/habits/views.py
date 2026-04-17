@@ -17,6 +17,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from django.utils import timezone
 from django.conf import settings
+from django.core.exceptions import SuspiciousOperation
 
 from .models import Habit, HabitLog, HabitSchedule, UserProfile
 from .serializers import (
@@ -948,7 +949,16 @@ class ProfileView(APIView):
             context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        try:
+            serializer.save()
+        except (OSError, SuspiciousOperation):
+            return Response(
+                _error_payload(
+                    "No se pudo guardar la imagen de perfil. Intenta de nuevo en unos segundos.",
+                    code="avatar_storage_error",
+                ),
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
