@@ -6,9 +6,10 @@ import LoadingSpinner from "./LoadingSpinner";
 const GENDER_OPTIONS = [
   { value: "male", label: "Masculino" },
   { value: "female", label: "Femenino" },
-  { value: "non_binary", label: "No binario" },
   { value: "prefer_not_to_say", label: "Prefiero no decirlo" },
 ];
+
+const ALLOWED_GENDERS = new Set(GENDER_OPTIONS.map((option) => option.value));
 
 const initialForm = {
   first_name: "",
@@ -63,7 +64,9 @@ export default function ProfilePanel({ onProfileChange }) {
             email: profile.email || "",
             birth_date: profile.birth_date || "",
             weight_kg: profile.weight_kg || "",
-            gender: profile.gender || "prefer_not_to_say",
+            gender: ALLOWED_GENDERS.has(profile.gender)
+              ? profile.gender
+              : "prefer_not_to_say",
           });
           setPersistedAvatarPreview(remoteAvatar);
           setAvatarPreview(remoteAvatar);

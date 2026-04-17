@@ -988,7 +988,7 @@ class CookieTokenRefreshView(TokenRefreshView):
         refresh_value = request.data.get('refresh') or request.COOKIES.get(settings.AUTH_REFRESH_COOKIE)
         if not refresh_value:
             return Response(
-                _error_payload('Refresh token not provided.', code='refresh_missing'),
+                _error_payload('No se encontró el token de actualización.', code='refresh_missing'),
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
@@ -997,7 +997,7 @@ class CookieTokenRefreshView(TokenRefreshView):
             serializer.is_valid(raise_exception=True)
         except TokenError:
             return Response(
-                _error_payload('Refresh token is invalid or blacklisted.', code='refresh_invalid'),
+                _error_payload('El token de actualización es inválido o ya no está disponible.', code='refresh_invalid'),
                 status=status.HTTP_401_UNAUTHORIZED,
             )
         response = Response(serializer.validated_data, status=status.HTTP_200_OK)
@@ -1033,7 +1033,7 @@ class LogoutView(APIView):
                 # Keep logout idempotent even if token is expired/invalid.
                 pass
 
-        response = Response({'detail': 'Logged out successfully.'}, status=status.HTTP_200_OK)
+        response = Response({'detail': 'Sesión cerrada correctamente.'}, status=status.HTTP_200_OK)
         response.delete_cookie(
             settings.AUTH_REFRESH_COOKIE,
             path=settings.AUTH_REFRESH_COOKIE_PATH,

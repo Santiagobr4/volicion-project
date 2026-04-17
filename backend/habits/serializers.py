@@ -23,6 +23,27 @@ VALID_DAYS = {
     "sunday",
 }
 
+
+def _translate_password_messages(messages):
+    """Translate common Django password validator messages to neutral Spanish."""
+    translated = []
+    for message in messages:
+        lower_message = message.lower()
+        if "too short" in lower_message:
+            translated.append("La contraseña es muy corta. Debe tener al menos 8 caracteres.")
+            continue
+        if "too common" in lower_message:
+            translated.append("La contraseña es demasiado común. Elige una más segura.")
+            continue
+        if "entirely numeric" in lower_message:
+            translated.append("La contraseña no puede ser solo números.")
+            continue
+        if "too similar" in lower_message:
+            translated.append("La contraseña es muy parecida a tus datos de cuenta.")
+            continue
+        translated.append(message)
+    return translated
+
 class HabitSerializer(serializers.ModelSerializer):
     """Serialize habits and enforce weekday list consistency."""
 
@@ -130,7 +151,28 @@ class HabitLogUpsertSerializer(serializers.Serializer):
 class RegisterSerializer(serializers.ModelSerializer):
     """Register users with case-insensitive uniqueness checks."""
 
-    password = serializers.CharField(write_only=True, min_length=8)
+    username = serializers.CharField(
+        error_messages={
+            "required": "El nombre de usuario es obligatorio.",
+            "blank": "El nombre de usuario es obligatorio.",
+        }
+    )
+    email = serializers.EmailField(
+        error_messages={
+            "required": "El correo electrónico es obligatorio.",
+            "blank": "El correo electrónico es obligatorio.",
+            "invalid": "Ingresa un correo electrónico válido.",
+        }
+    )
+    password = serializers.CharField(
+        write_only=True,
+        min_length=8,
+        error_messages={
+            "required": "La contraseña es obligatoria.",
+            "blank": "La contraseña es obligatoria.",
+            "min_length": "La contraseña debe tener al menos 8 caracteres.",
+        },
+    )
 
     class Meta:
         model = User
@@ -143,9 +185,9 @@ class RegisterSerializer(serializers.ModelSerializer):
 
         errors = {}
         if User.objects.filter(username__iexact=username).exists():
-            errors["username"] = ["This username is already in use."]
+            errors["username"] = ["Este nombre de usuario ya está en uso."]
         if User.objects.filter(email__iexact=email).exists():
-            errors["email"] = ["This email is already in use."]
+            errors["email"] = ["Este correo electrónico ya está en uso."]
 
         if errors:
             raise serializers.ValidationError(errors)
@@ -153,12 +195,16 @@ class RegisterSerializer(serializers.ModelSerializer):
         try:
             validate_password(password, user=User(username=username, email=email))
         except DjangoValidationError as exc:
-            errors["password"] = list(exc.messages)
+            errors["password"] = _translate_password_messages(list(exc.messages))
 
         if not re.search(r"[A-Z]", password):
-            errors.setdefault("password", []).append("Password must include at least one uppercase letter.")
+            errors.setdefault("password", []).append(
+                "La contraseña debe incluir al menos una letra mayúscula."
+            )
         if not re.search(r"\d", password):
-            errors.setdefault("password", []).append("Password must include at least one number.")
+            errors.setdefault("password", []).append(
+                "La contraseña debe incluir al menos un número."
+            )
 
         if errors:
             raise serializers.ValidationError(errors)
@@ -263,19 +309,35 @@ class CaseInsensitiveTokenObtainPairSerializer(TokenObtainPairSerializer):
     """Authenticate with case-insensitive username matching."""
 
     default_error_messages = {
-        "no_active_account": "No active account found with the given credentials."
+        "missing_credentials": "Ingresa tu usuario y contraseña.",
+        "invalid_credentials": "Usuario o contraseña incorrectos.",
     }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields[self.username_field].error_messages["required"] = (
+            "El usuario es obligatorio."
+        )
+        self.fields[self.username_field].error_messages["blank"] = (
+            "El usuario es obligatorio."
+        )
+        self.fields["password"].error_messages["required"] = (
+            "La contraseña es obligatoria."
+        )
+        self.fields["password"].error_messages["blank"] = (
+            "La contraseña es obligatoria."
+        )
 
     def validate(self, attrs):
         username = attrs.get(self.username_field)
         password = attrs.get("password")
 
         if not username or not password:
-            raise AuthenticationFailed(self.error_messages["no_active_account"])
+            raise AuthenticationFailed(self.error_messages["missing_credentials"])
 
         user = User.objects.filter(username__iexact=username.strip()).first()
         if not user or not user.check_password(password):
-            raise AuthenticationFailed(self.error_messages["no_active_account"])
+            raise AuthenticationFailed(self.error_messages["invalid_credentials"])
 
         attrs[self.username_field] = user.get_username()
         return super().validate(attrs)

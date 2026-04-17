@@ -74,6 +74,17 @@ class HabitApiTests(APITestCase):
 		errors = response.data.get('errors', {})
 		self.assertIn('username', errors)
 		self.assertIn('email', errors)
+		self.assertIn('Este nombre de usuario ya está en uso.', errors['username'])
+		self.assertIn('Este correo electrónico ya está en uso.', errors['email'])
+
+	def test_register_returns_spanish_messages_for_missing_fields(self):
+		response = self.client.post('/api/register/', {}, format='json')
+
+		self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+		errors = response.data.get('errors', {})
+		self.assertIn('El nombre de usuario es obligatorio.', errors.get('username', []))
+		self.assertIn('El correo electrónico es obligatorio.', errors.get('email', []))
+		self.assertIn('La contraseña es obligatoria.', errors.get('password', []))
 
 	def test_case_insensitive_login_with_username(self):
 		response = self.client.post(
@@ -85,6 +96,22 @@ class HabitApiTests(APITestCase):
 		self.assertIn('access', response.data)
 		self.assertNotIn('refresh', response.data)
 		self.assertIn('habit_tracker_refresh', response.cookies)
+
+	def test_login_returns_spanish_message_for_invalid_credentials(self):
+		response = self.client.post(
+			'/api/token/',
+			{'username': 'alice', 'password': 'wrong-pass'},
+			format='json',
+		)
+		self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+		self.assertEqual(response.data['detail'], 'Usuario o contraseña incorrectos.')
+
+	def test_login_returns_spanish_message_for_missing_credentials(self):
+		response = self.client.post('/api/token/', {}, format='json')
+		self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+		errors = response.data.get('errors', {})
+		self.assertIn('El usuario es obligatorio.', errors.get('username', []))
+		self.assertIn('La contraseña es obligatoria.', errors.get('password', []))
 
 	def test_refresh_uses_http_only_cookie(self):
 		login_response = self.client.post(
@@ -466,6 +493,35 @@ class HabitApiTests(APITestCase):
 		historical_highlight = response.data['highlights']['historical']
 		self.assertEqual(historical_highlight['score'], 91)
 		self.assertEqual(historical_highlight['leaders'][0]['username'], 'bob')
+
+	def test_leaderboard_weekly_highlight_returns_multiple_leaders_on_tie(self):
+		self.authenticate('alice', 'Passw0rd123')
+		cache.clear()
+
+		self.habit_user_1.days = [
+			'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'
+		]
+		self.habit_user_2.days = [
+			'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'
+		]
+		self.habit_user_1.start_date = self.today
+		self.habit_user_2.start_date = self.today
+		self.habit_user_1.save(update_fields=['days', 'start_date'])
+		self.habit_user_2.save(update_fields=['days', 'start_date'])
+
+		HabitLog.objects.create(habit=self.habit_user_1, date=str(self.today), status='done')
+		HabitLog.objects.create(habit=self.habit_user_2, date=str(self.today), status='done')
+
+		response = self.client.get('/api/habits/leaderboard/?days=30')
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+		weekly_highlight = response.data['highlights']['weekly']
+		leaders = weekly_highlight['leaders']
+		self.assertEqual(weekly_highlight['score'], 100)
+		self.assertGreaterEqual(len(leaders), 2)
+		leader_usernames = {item['username'] for item in leaders}
+		self.assertIn('alice', leader_usernames)
+		self.assertIn('bob', leader_usernames)
 
 	def test_profile_remove_avatar_clears_avatar_url(self):
 		self.authenticate('alice', 'Passw0rd123')
