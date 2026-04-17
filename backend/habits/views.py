@@ -5,7 +5,7 @@ from collections import defaultdict
 
 from django.contrib.auth.models import User
 from django.core.cache import cache
-from django.db.models import Prefetch
+from django.db.models import Count, Prefetch, Q
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -668,14 +668,36 @@ class HabitViewSet(viewsets.ModelViewSet):
             leaders_limit = int(getattr(settings, 'LEADERBOARD_LEADERS_LIMIT', 10))
 
             max_users = int(getattr(settings, 'LEADERBOARD_MAX_USERS', 200))
+            api_today = str(today)
+            api_week_start = str(week_start)
+            api_month_start = str(month_start)
 
             users = list(
                 User.objects.filter(is_superuser=False)
+                .annotate(
+                    active_habits_count=Count(
+                        'habit',
+                        filter=Q(habit__is_archived=False),
+                        distinct=True,
+                    )
+                )
+                .filter(active_habits_count__gt=0)
                 .select_related('profile')
                 .prefetch_related(
                     Prefetch(
                         'habit_set',
-                        queryset=Habit.objects.filter(is_archived=False).prefetch_related('schedules'),
+                        queryset=Habit.objects.filter(is_archived=False)
+                        .only('id', 'user_id', 'name', 'days', 'start_date', 'archived_at')
+                        .prefetch_related(
+                            Prefetch(
+                                'schedules',
+                                queryset=HabitSchedule.objects.only(
+                                    'habit_id',
+                                    'effective_from',
+                                    'days',
+                                ).order_by('effective_from'),
+                            )
+                        ),
                         to_attr='active_habits',
                     )
                 )
@@ -685,7 +707,15 @@ class HabitViewSet(viewsets.ModelViewSet):
             selected_user_ids = [user.id for user in users]
             logs_by_user = defaultdict(list)
             if selected_user_ids:
+                earliest_baseline = min(
+                    _metrics_baseline_date(user, [])
+                    for user in users
+                )
                 logs = HabitLog.objects.filter(habit__user_id__in=selected_user_ids).order_by('date')
+                logs = logs.filter(
+                    habit__is_archived=False,
+                    date__range=(earliest_baseline, today),
+                ).select_related('habit').only('habit_id', 'habit__user_id', 'date', 'status')
                 for log in logs:
                     logs_by_user[log.habit.user_id].append(log)
 
@@ -702,30 +732,34 @@ class HabitViewSet(viewsets.ModelViewSet):
                     for log in logs_by_user.get(user.id, [])
                 }
 
-                # Daily metrics
-                daily_metrics = _compute_range_metrics(
-                    user, today, today, habits, schedule_map, logs_map
-                )
-                daily_completion = daily_metrics['daily'][0]['completion'] if daily_metrics['daily'] else 0
-
-                # Weekly metrics
-                weekly_metrics = _compute_range_metrics(
-                    user, week_start, today, habits, schedule_map, logs_map
-                )
-                weekly_completion = _overall_completion(weekly_metrics['daily']) or 0
-
-                # Monthly metrics
-                monthly_metrics = _compute_range_metrics(
-                    user, month_start, today, habits, schedule_map, logs_map
-                )
-                monthly_completion = _overall_completion(monthly_metrics['daily']) or 0
-
-                # Historical metrics
                 baseline = _metrics_baseline_date(user, habits)
-                historical_metrics = _compute_range_metrics(
+                all_metrics = _compute_range_metrics(
                     user, baseline, today, habits, schedule_map, logs_map
                 )
-                historical_completion = _overall_completion(historical_metrics['daily']) or 0
+
+                all_daily_rows = all_metrics['daily']
+                if not all_daily_rows:
+                    continue
+
+                today_row = next(
+                    (row for row in all_daily_rows if row['date'] == api_today),
+                    None,
+                )
+                daily_completion = (today_row or {}).get('completion') or 0
+
+                weekly_rows = [
+                    row for row in all_daily_rows
+                    if row['date'] >= api_week_start
+                ]
+                weekly_completion = _overall_completion(weekly_rows) or 0
+
+                monthly_rows = [
+                    row for row in all_daily_rows
+                    if row['date'] >= api_month_start
+                ]
+                monthly_completion = _overall_completion(monthly_rows) or 0
+
+                historical_completion = _overall_completion(all_daily_rows) or 0
 
                 # Only include users with some activity
                 if daily_completion or weekly_completion or monthly_completion or historical_completion:

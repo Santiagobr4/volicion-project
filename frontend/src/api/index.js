@@ -4,21 +4,10 @@ import {
   getAccessToken,
   setAccessToken,
 } from "./authSession";
+import { API_BASE_URL } from "./config";
 
 const api = axios.create({
-  baseURL: (() => {
-    const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL;
-
-    if (configuredBaseUrl && !import.meta.env.DEV) {
-      return configuredBaseUrl;
-    }
-
-    if (typeof window !== "undefined") {
-      return `${window.location.protocol}//${window.location.hostname}:8000/api`;
-    }
-
-    return configuredBaseUrl || "http://localhost:8000/api";
-  })(),
+  baseURL: API_BASE_URL,
   withCredentials: true,
 });
 
@@ -83,7 +72,7 @@ api.interceptors.response.use(
 
     try {
       const refreshResponse = await axios.post(
-        `${api.defaults.baseURL}/token/refresh/`,
+        `${API_BASE_URL}/token/refresh/`,
         {},
         { withCredentials: true },
       );

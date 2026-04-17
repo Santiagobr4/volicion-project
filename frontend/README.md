@@ -32,11 +32,21 @@ This SPA consumes the Django API and provides:
 Create `.env` in the frontend root:
 
 ```env
+# Local backend URL for Vite dev server
 VITE_API_BASE_URL=http://localhost:8000/api
+
+# Optional: target used by Vite proxy when frontend uses /api
+VITE_API_PROXY_TARGET=http://localhost:8000
 ```
 
-If you switch to the production Nginx/domain setup, point this to the same-origin `/api` path or the final HTTPS API domain.
-In development, the app will prefer the current browser hostname for the API to avoid localhost/127.0.0.1 cookie mismatches.
+If you switch to production Nginx/domain setup, set `VITE_API_BASE_URL=/api` (same-origin) or a full HTTPS API origin.
+
+The frontend now resolves API base URL in this order:
+
+1. `VITE_API_BASE_URL` when set
+2. fallback to `/api`
+
+In development, Vite proxies `/api` to `VITE_API_PROXY_TARGET` (or `http://localhost:8000` by default), which avoids CORS/cookie mismatches.
 
 ## Run in Development
 

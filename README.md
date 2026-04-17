@@ -8,9 +8,14 @@ This repository is organized as a single deployment root:
 
 ## Local deployment
 
-1. Set the backend environment in `backend/.env`.
-2. Set the frontend build-time environment if needed.
+1. Set backend secrets in `backend/.env`.
+2. Optionally set infrastructure/runtime variables in root `.env` (database credentials, URLs, hosts, cookie settings).
 3. Run `docker-compose up --build` from this root.
+
+`docker-compose` now uses environment-variable substitution for DB credentials and service URLs (with safe defaults for local usage).
+Migrations are executed by a dedicated one-shot service (`backend-migrate`) before backend startup.
+
+For a production VPS checklist, see [deploy/VPS.md](deploy/VPS.md).
 
 ## Layout
 

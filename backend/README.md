@@ -147,6 +147,8 @@ Run from the workspace root (`c:/Users/santi/Documents/Dev`):
 docker compose up --build
 ```
 
+In compose-based deployment, migrations run as a dedicated one-shot service (`backend-migrate`) instead of running inside the backend app startup command.
+
 Frontend URL: `http://localhost`
 
 In this setup, Nginx serves the SPA and proxies `/api/*` to Django.
