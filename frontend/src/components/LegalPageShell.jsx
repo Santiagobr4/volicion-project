@@ -7,14 +7,14 @@ export default function LegalPageShell({
   children,
 }) {
   useEffect(() => {
-    document.title = `${title} | Volicion`;
+    document.title = `${title} | VOLICION`;
   }, [title]);
 
   return (
     <article className="max-w-4xl mx-auto">
       <div className="rounded-3xl border border-slate-200/80 dark:border-slate-700 bg-white/90 dark:bg-slate-900/80 p-5 sm:p-6 md:p-8 shadow-sm">
         <p className="text-xs uppercase tracking-[0.22em] text-slate-500 dark:text-slate-300">
-          Volicion / Legal
+          VOLICION / Legal
         </p>
         <h1 className="mt-2 text-3xl sm:text-4xl font-semibold tracking-tight">
           {title}

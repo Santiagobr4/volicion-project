@@ -27,6 +27,14 @@ const getWeekStart = () => {
   return toLocalIsoDate(now);
 };
 
+const getMaxFutureWeekStart = () => {
+  const now = new Date();
+  const day = now.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  now.setDate(now.getDate() + diffToMonday + 7);
+  return toLocalIsoDate(now);
+};
+
 /**
  * Normalize any ISO date to the Monday of that week.
  */
@@ -60,7 +68,7 @@ export const useHabits = ({ onDataChanged } = {}) => {
     trackerMetrics?.baseline_date,
   );
   const canGoPrev = minimumWeekStart ? startDate > minimumWeekStart : true;
-  const canGoNext = startDate < getWeekStart();
+  const canGoNext = startDate < getMaxFutureWeekStart();
 
   const fetchData = useCallback(async () => {
     try {
@@ -100,9 +108,8 @@ export const useHabits = ({ onDataChanged } = {}) => {
 
   const changeWeek = (dir) => {
     const d = new Date(`${startDate}T00:00:00`);
-    const currentWeekStart = getWeekStart();
 
-    if (dir > 0 && startDate >= currentWeekStart) {
+    if (dir > 0 && !canGoNext) {
       return;
     }
 
@@ -112,11 +119,6 @@ export const useHabits = ({ onDataChanged } = {}) => {
 
     d.setDate(d.getDate() + dir * 7);
     const nextStartDate = toLocalIsoDate(d);
-
-    if (nextStartDate > currentWeekStart) {
-      setStartDate(currentWeekStart);
-      return;
-    }
 
     if (minimumWeekStart && nextStartDate < minimumWeekStart) {
       setStartDate(minimumWeekStart);
@@ -209,6 +211,21 @@ export const useHabits = ({ onDataChanged } = {}) => {
     try {
       await updateHabit(id, habit);
       await fetchData();
+
+      if (Array.isArray(habit?.days) && habit.days.length > 0) {
+        const updatedDays = [...habit.days];
+        setData((prev) =>
+          prev.map((item) =>
+            item.habit_id === id
+              ? {
+                  ...item,
+                  editable_days: updatedDays,
+                }
+              : item,
+          ),
+        );
+      }
+
       onDataChanged?.();
       return { success: true };
     } catch (err) {

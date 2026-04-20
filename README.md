@@ -1,4 +1,4 @@
-# Volicion Monorepo
+# VOLICION Monorepo
 
 This repository is organized as a single deployment root:
 

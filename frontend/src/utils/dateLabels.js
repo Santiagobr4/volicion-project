@@ -14,6 +14,12 @@ const READABLE_DATE_FORMATTER = new Intl.DateTimeFormat("es-419", {
   timeZone: "UTC",
 });
 
+const COMPACT_DATE_FORMATTER = new Intl.DateTimeFormat("es-419", {
+  month: "short",
+  day: "numeric",
+  timeZone: "UTC",
+});
+
 export const getIsoDateLabel = (isoDate) => {
   if (!isoDate) return "";
   return isoDate.slice(5);
@@ -48,6 +54,11 @@ export const capitalizeDayCode = (value) => {
 export const formatReadableDate = (isoDate) => {
   if (!isoDate) return "";
   return READABLE_DATE_FORMATTER.format(new Date(`${isoDate}T00:00:00Z`));
+};
+
+export const formatCompactDate = (isoDate) => {
+  if (!isoDate) return "";
+  return COMPACT_DATE_FORMATTER.format(new Date(`${isoDate}T00:00:00Z`));
 };
 
 export const formatReadableDateRange = (startDate, endDate) => {

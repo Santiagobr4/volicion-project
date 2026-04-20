@@ -8,8 +8,9 @@ from django.contrib.auth.models import User
 class Habit(models.Model):
     """A user-defined habit with current schedule settings.
 
-    The `days` field stores the active weekdays for the current schedule.
     Historical schedule changes are tracked in `HabitSchedule`.
+    The `days` field is kept as legacy compatibility data for create-time
+    defaults, but runtime schedule resolution must use `HabitSchedule`.
     """
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -21,6 +22,25 @@ class Habit(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+    def save(self, *args, **kwargs):
+        creating = self._state.adding
+        update_fields = kwargs.get('update_fields')
+        super().save(*args, **kwargs)
+
+        direct_schedule_update = bool(update_fields and {'days', 'start_date'} & set(update_fields))
+
+        if creating or direct_schedule_update:
+            if direct_schedule_update:
+                HabitSchedule.objects.filter(habit=self).exclude(
+                    effective_from=self.start_date,
+                ).delete()
+
+            HabitSchedule.objects.update_or_create(
+                habit=self,
+                effective_from=self.start_date,
+                defaults={'days': self.days},
+            )
 
     class Meta:
         indexes = [
@@ -90,6 +110,7 @@ class UserProfile(models.Model):
     avatar_url = models.URLField(blank=True)
     birth_date = models.DateField(null=True, blank=True)
     weight_kg = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    token_version = models.PositiveIntegerField(default=0)
     gender = models.CharField(
         max_length=20,
         choices=GENDER_CHOICES,

@@ -55,6 +55,25 @@ export const updateProfile = async (payload) => {
   return res.data;
 };
 
+export const requestPasswordResetEmail = async () => {
+  const res = await api.post("/profile/password-reset/", {});
+  return res.data;
+};
+
+export const requestPasswordResetByEmail = async (email) => {
+  const res = await api.post("/password-reset/request/", { email });
+  return res.data;
+};
+
+export const confirmPasswordReset = async ({ uid, token, newPassword }) => {
+  const res = await api.post("/password-reset/confirm/", {
+    uid,
+    token,
+    new_password: newPassword,
+  });
+  return res.data;
+};
+
 export const getApiErrorMessage = (error, fallbackMessage) => {
   const data = error?.response?.data;
 
@@ -62,6 +81,10 @@ export const getApiErrorMessage = (error, fallbackMessage) => {
 
   if (typeof data.detail === "string") {
     return data.detail;
+  }
+
+  if (typeof data.error === "string") {
+    return data.error;
   }
 
   const usernameError = Array.isArray(data.username)

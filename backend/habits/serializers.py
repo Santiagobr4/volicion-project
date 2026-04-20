@@ -1,6 +1,7 @@
 """Serializers for habit tracking API endpoints."""
 
 import re
+from datetime import timedelta
 
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
@@ -8,7 +9,9 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import Habit, HabitLog, HabitSchedule, UserProfile
 
@@ -22,6 +25,14 @@ VALID_DAYS = {
     "saturday",
     "sunday",
 }
+
+
+def _next_monday(from_date):
+    """Return the Monday of the next week relative to `from_date`."""
+    days_until_monday = (7 - from_date.weekday()) % 7
+    if days_until_monday == 0:
+        days_until_monday = 7
+    return from_date + timedelta(days=days_until_monday)
 
 
 def _translate_password_messages(messages):
@@ -81,29 +92,30 @@ class HabitSerializer(serializers.ModelSerializer):
         return normalized
 
     def create(self, validated_data):
-        habit = Habit.objects.create(**validated_data)
-        HabitSchedule.objects.create(
-            habit=habit,
-            effective_from=habit.start_date,
-            days=habit.days,
-        )
-        return habit
+        return Habit.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
+        new_name = validated_data.pop("name", None)
+        if new_name is not None and new_name != instance.name:
+            raise serializers.ValidationError(
+                {"name": "El nombre del hábito no se puede editar."}
+            )
+
         days_was_updated = "days" in validated_data
+        requested_days = validated_data.pop("days", None)
         previous_days = list(instance.days)
 
         updated_instance = super().update(instance, validated_data)
 
-        if days_was_updated and previous_days != updated_instance.days:
-            effective_from = timezone.localdate()
+        if days_was_updated and requested_days is not None and previous_days != requested_days:
+            effective_from = _next_monday(timezone.localdate())
             if effective_from < updated_instance.start_date:
                 effective_from = updated_instance.start_date
 
             HabitSchedule.objects.update_or_create(
                 habit=updated_instance,
                 effective_from=effective_from,
-                defaults={"days": updated_instance.days},
+                defaults={"days": requested_days},
             )
 
         return updated_instance
@@ -131,6 +143,8 @@ class HabitLogUpsertSerializer(serializers.Serializer):
         if not request or habit.user_id != request.user.id:
             raise serializers.ValidationError("You cannot update logs for this habit")
         if habit.is_archived:
+            raise serializers.ValidationError("You cannot update logs for archived habits")
+        if habit.archived_at and habit.archived_at <= timezone.localdate():
             raise serializers.ValidationError("You cannot update logs for archived habits")
         return habit
 
@@ -220,6 +234,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     """Serialize and validate editable profile fields for authenticated users."""
 
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
     first_name = serializers.CharField(source='user.first_name', allow_blank=True, required=False)
     last_name = serializers.CharField(source='user.last_name', allow_blank=True, required=False)
     email = serializers.EmailField(source='user.email', required=False)
@@ -231,6 +246,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
         fields = [
+            'user_id',
             'username',
             'email',
             'first_name',
@@ -340,4 +356,30 @@ class CaseInsensitiveTokenObtainPairSerializer(TokenObtainPairSerializer):
             raise AuthenticationFailed(self.error_messages["invalid_credentials"])
 
         attrs[self.username_field] = user.get_username()
+        return super().validate(attrs)
+
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        token["token_version"] = profile.token_version
+        return token
+
+
+class VersionedTokenRefreshSerializer(TokenRefreshSerializer):
+    """Refresh serializer that rejects tokens issued before a password reset."""
+
+    def validate(self, attrs):
+        refresh = RefreshToken(attrs["refresh"])
+        user_id = refresh.get("user_id")
+        token_version = int(refresh.get("token_version", 0))
+
+        user = User.objects.filter(id=user_id).first()
+        if not user:
+            raise TokenError("Token de sesión inválido.")
+
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        if token_version != profile.token_version:
+            raise TokenError("Tu sesión expiró porque cambió la contraseña.")
+
         return super().validate(attrs)

@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { fetchProfile, getApiErrorMessage, updateProfile } from "../api/auth";
+import {
+  fetchProfile,
+  getApiErrorMessage,
+  requestPasswordResetEmail,
+  updateProfile,
+} from "../api/auth";
 import defaultAvatar from "../assets/default-avatar.svg";
 import LoadingSpinner from "./LoadingSpinner";
 
@@ -44,6 +49,8 @@ export default function ProfilePanel({ onProfileChange }) {
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [pendingPhoto, setPendingPhoto] = useState(null);
+  const [sendingResetEmail, setSendingResetEmail] = useState(false);
+  const [passwordResetMessage, setPasswordResetMessage] = useState("");
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -157,6 +164,29 @@ export default function ProfilePanel({ onProfileChange }) {
     event.preventDefault();
     if (saving) return;
     setShowSaveConfirm(true);
+  };
+
+  const handlePasswordResetRequest = async () => {
+    setSendingResetEmail(true);
+    setPasswordResetMessage("");
+    setError("");
+
+    try {
+      const result = await requestPasswordResetEmail();
+      setPasswordResetMessage(
+        result?.detail ||
+          "Te enviamos un correo para restablecer tu contraseña.",
+      );
+    } catch (requestError) {
+      setError(
+        getApiErrorMessage(
+          requestError,
+          "No pudimos enviar el correo de recuperación.",
+        ),
+      );
+    } finally {
+      setSendingResetEmail(false);
+    }
   };
 
   if (loading) {
@@ -345,15 +375,30 @@ export default function ProfilePanel({ onProfileChange }) {
 
         {error && <p className="text-sm text-red-500">{error}</p>}
         {success && <p className="text-sm text-green-600">{success}</p>}
+        {passwordResetMessage && (
+          <p className="text-sm text-green-600">{passwordResetMessage}</p>
+        )}
 
         <div className="pt-2">
-          <button
-            type="submit"
-            disabled={saving}
-            className="px-4 py-2 rounded-lg bg-slate-900 text-white dark:bg-slate-200 dark:text-slate-900 hover:opacity-90 disabled:opacity-60 cursor-pointer"
-          >
-            {saving ? "Guardando..." : "Guardar perfil"}
-          </button>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-4 py-2 rounded-lg bg-slate-900 text-white dark:bg-slate-200 dark:text-slate-900 hover:opacity-90 disabled:opacity-60 cursor-pointer"
+            >
+              {saving ? "Guardando..." : "Guardar perfil"}
+            </button>
+            <button
+              type="button"
+              disabled={sendingResetEmail}
+              onClick={handlePasswordResetRequest}
+              className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-60 cursor-pointer"
+            >
+              {sendingResetEmail
+                ? "Enviando correo..."
+                : "Restaurar contraseña"}
+            </button>
+          </div>
         </div>
       </form>
 

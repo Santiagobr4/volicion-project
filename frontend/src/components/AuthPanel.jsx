@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { getApiErrorMessage, login, register } from "../api/auth";
+import {
+  getApiErrorMessage,
+  login,
+  register,
+  requestPasswordResetByEmail,
+} from "../api/auth";
 
 const defaultLogin = {
   username: "",
@@ -16,8 +21,15 @@ export default function AuthPanel({ onAuthenticated }) {
   const [mode, setMode] = useState("login");
   const [loginForm, setLoginForm] = useState(defaultLogin);
   const [registerForm, setRegisterForm] = useState(defaultRegister);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSubmitting, setForgotSubmitting] = useState(false);
+  const [forgotMessage, setForgotMessage] = useState("");
+  const [forgotError, setForgotError] = useState("");
 
   const metrics = [
     { label: "Diario", value: "Enfoque" },
@@ -29,7 +41,7 @@ export default function AuthPanel({ onAuthenticated }) {
     <>
       <div>
         <p className="text-xs uppercase tracking-[0.22em] text-slate-300">
-          Volicion
+          VOLICION
         </p>
         <h2 className="mt-4 text-3xl md:text-4xl font-semibold leading-tight">
           Convierte intención en acción.
@@ -99,6 +111,33 @@ export default function AuthPanel({ onAuthenticated }) {
     }
   };
 
+  const onForgotPassword = async (event) => {
+    event.preventDefault();
+
+    if (forgotSubmitting) return;
+
+    setForgotSubmitting(true);
+    setForgotError("");
+    setForgotMessage("");
+
+    try {
+      const response = await requestPasswordResetByEmail(forgotEmail);
+      setForgotMessage(
+        response?.detail ||
+          "Si existe una cuenta con ese correo, recibirás un enlace de recuperación.",
+      );
+    } catch (forgotRequestError) {
+      setForgotError(
+        getApiErrorMessage(
+          forgotRequestError,
+          "No pudimos procesar la solicitud en este momento.",
+        ),
+      );
+    } finally {
+      setForgotSubmitting(false);
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto rounded-3xl border border-slate-200/80 dark:border-slate-700 bg-white/90 dark:bg-slate-900/80 shadow-sm overflow-hidden">
       <div className="grid lg:grid-cols-2 lg:items-stretch">
@@ -119,6 +158,8 @@ export default function AuthPanel({ onAuthenticated }) {
               onClick={() => {
                 setMode("login");
                 setError("");
+                setForgotError("");
+                setForgotMessage("");
               }}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition cursor-pointer ${
                 mode === "login"
@@ -134,6 +175,9 @@ export default function AuthPanel({ onAuthenticated }) {
               onClick={() => {
                 setMode("register");
                 setError("");
+                setShowForgotPassword(false);
+                setForgotError("");
+                setForgotMessage("");
               }}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition cursor-pointer ${
                 mode === "register"
@@ -183,19 +227,28 @@ export default function AuthPanel({ onAuthenticated }) {
                   <label className="block text-sm mb-1 text-slate-500 dark:text-slate-300">
                     Contraseña
                   </label>
-                  <input
-                    type="password"
-                    placeholder="Tu contraseña"
-                    required
-                    value={loginForm.password}
-                    onChange={(event) =>
-                      setLoginForm((prev) => ({
-                        ...prev,
-                        password: event.target.value,
-                      }))
-                    }
-                    className="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2.5 text-black dark:text-white outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-600"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showLoginPassword ? "text" : "password"}
+                      placeholder="Tu contraseña"
+                      required
+                      value={loginForm.password}
+                      onChange={(event) =>
+                        setLoginForm((prev) => ({
+                          ...prev,
+                          password: event.target.value,
+                        }))
+                      }
+                      className="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2.5 pr-20 text-black dark:text-white outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-600"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginPassword((prev) => !prev)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs rounded-md border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                    >
+                      {showLoginPassword ? "Ocultar" : "Mostrar"}
+                    </button>
+                  </div>
                 </div>
 
                 <button
@@ -205,6 +258,57 @@ export default function AuthPanel({ onAuthenticated }) {
                 >
                   {submitting ? "Iniciando sesión..." : "Iniciar sesión"}
                 </button>
+
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowForgotPassword((prev) => !prev);
+                      setForgotError("");
+                      setForgotMessage("");
+                    }}
+                    className="text-sm text-slate-600 dark:text-slate-300 underline underline-offset-2 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+                  >
+                    {showForgotPassword
+                      ? "Ocultar recuperación"
+                      : "¿Olvidaste tu contraseña?"}
+                  </button>
+
+                  {showForgotPassword && (
+                    <div className="mt-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/50 p-3 space-y-3">
+                      <label className="block text-sm text-slate-600 dark:text-slate-300">
+                        Correo de tu cuenta
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        value={forgotEmail}
+                        onChange={(event) => setForgotEmail(event.target.value)}
+                        placeholder="you@example.com"
+                        className="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2.5 text-black dark:text-white outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-600"
+                      />
+                      <button
+                        type="button"
+                        onClick={onForgotPassword}
+                        disabled={forgotSubmitting}
+                        className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-60 cursor-pointer"
+                      >
+                        {forgotSubmitting
+                          ? "Enviando..."
+                          : "Enviar enlace de recuperación"}
+                      </button>
+
+                      {forgotError && (
+                        <p className="text-sm text-red-500">{forgotError}</p>
+                      )}
+                      {forgotMessage && (
+                        <p className="text-sm text-green-600">
+                          {forgotMessage}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </form>
             ) : (
               <form onSubmit={onRegister} className="space-y-4">
@@ -250,20 +354,29 @@ export default function AuthPanel({ onAuthenticated }) {
                   <label className="block text-sm mb-1 text-slate-500 dark:text-slate-300">
                     Contraseña
                   </label>
-                  <input
-                    type="password"
-                    placeholder="Mínimo 8 caracteres"
-                    required
-                    minLength={8}
-                    value={registerForm.password}
-                    onChange={(event) =>
-                      setRegisterForm((prev) => ({
-                        ...prev,
-                        password: event.target.value,
-                      }))
-                    }
-                    className="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2.5 text-black dark:text-white outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-600"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showRegisterPassword ? "text" : "password"}
+                      placeholder="Mínimo 8 caracteres"
+                      required
+                      minLength={8}
+                      value={registerForm.password}
+                      onChange={(event) =>
+                        setRegisterForm((prev) => ({
+                          ...prev,
+                          password: event.target.value,
+                        }))
+                      }
+                      className="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2.5 pr-20 text-black dark:text-white outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-600"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowRegisterPassword((prev) => !prev)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs rounded-md border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                    >
+                      {showRegisterPassword ? "Ocultar" : "Mostrar"}
+                    </button>
+                  </div>
                 </div>
 
                 <button

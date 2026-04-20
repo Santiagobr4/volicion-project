@@ -4,14 +4,14 @@ const sections = [
   {
     title: "1. Introducción",
     paragraphs: [
-      "Estos Términos de Uso regulan el acceso y uso de Volicion, una aplicación enfocada en seguimiento de hábitos, disciplina y mejora personal.",
+      "Estos Términos de Uso regulan el acceso y uso de VOLICION, una aplicación enfocada en seguimiento de hábitos, disciplina y mejora personal.",
       "Al crear una cuenta o usar la plataforma, aceptas estas condiciones. Si no estás de acuerdo, no deberías utilizar el servicio.",
     ],
   },
   {
     title: "2. Uso del servicio",
     paragraphs: [
-      "Volicion ofrece herramientas para registrar hábitos, revisar métricas de progreso, consultar historial y gestionar tu perfil.",
+      "VOLICION ofrece herramientas para registrar hábitos, revisar métricas de progreso, consultar historial y gestionar tu perfil.",
       "El servicio puede cambiar, actualizarse o suspenderse temporalmente por razones técnicas, de seguridad o de mantenimiento.",
     ],
   },
@@ -33,14 +33,14 @@ const sections = [
   {
     title: "5. Propiedad intelectual",
     paragraphs: [
-      "El diseño, código, textos, marcas y componentes visuales de Volicion pertenecen a sus respectivos titulares.",
+      "El diseño, código, textos, marcas y componentes visuales de VOLICION pertenecen a sus respectivos titulares.",
       "No está permitido copiar, distribuir o reutilizar materiales del servicio sin autorización, salvo cuando la ley lo permita.",
     ],
   },
   {
     title: "6. Limitación de responsabilidad",
     paragraphs: [
-      "Volicion se ofrece con el objetivo de apoyar hábitos y seguimiento personal, pero no garantiza resultados concretos de productividad o bienestar.",
+      "VOLICION se ofrece con el objetivo de apoyar hábitos y seguimiento personal, pero no garantiza resultados concretos de productividad o bienestar.",
       "No somos responsables por pérdidas indirectas, interrupciones del servicio o decisiones tomadas exclusivamente en función de la información mostrada en la plataforma.",
     ],
   },
@@ -70,7 +70,7 @@ export default function UsageTermsPage() {
   return (
     <LegalPageShell
       title="Términos de Uso"
-      description="Este documento describe las reglas básicas para usar Volicion de forma segura, ordenada y coherente con el propósito de la plataforma."
+      description="Este documento describe las reglas básicas para usar VOLICION de forma segura, ordenada y coherente con el propósito de la plataforma."
       updatedAt="17 de abril de 2026"
     >
       {sections.map((section) => (

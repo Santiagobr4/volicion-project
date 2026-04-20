@@ -1,6 +1,6 @@
-# Volicion Frontend
+# VOLICION Frontend
 
-Frontend application for Volicion built with React + Vite.
+Frontend application for VOLICION built with React + Vite.
 
 ## Overview
 

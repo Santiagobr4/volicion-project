@@ -1,5 +1,6 @@
 """API views and metric helpers for the habit tracking backend."""
 
+import logging
 from datetime import datetime, timedelta
 from collections import defaultdict
 
@@ -14,10 +15,17 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from django.utils import timezone
 from django.conf import settings
 from django.core.exceptions import SuspiciousOperation
+from django.contrib.auth.tokens import default_token_generator
+from django.contrib.auth.password_validation import validate_password
+from django.utils.http import urlsafe_base64_encode
+from django.utils.http import urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.core.mail import send_mail
+from django.core.exceptions import ValidationError
+from django.db import transaction
 
 from .models import Habit, HabitLog, HabitSchedule, UserProfile
 from .serializers import (
@@ -27,8 +35,21 @@ from .serializers import (
     CaseInsensitiveTokenObtainPairSerializer,
     RegisterSerializer,
     UserProfileSerializer,
+    VersionedTokenRefreshSerializer,
 )
 from .throttles import LoginRateThrottle, RegisterRateThrottle
+
+logger = logging.getLogger(__name__)
+
+WEEKDAY_NAMES = (
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+)
 
 
 def _error_payload(message, code=None, **extra):
@@ -44,6 +65,11 @@ def _error_payload(message, code=None, **extra):
     return payload
 
 
+def _weekday_name(target_date):
+    """Return locale-independent weekday label used by schedule data."""
+    return WEEKDAY_NAMES[target_date.weekday()]
+
+
 def _invalidate_leaderboard_cache(target_date=None):
     """Invalidate leaderboard cache entries for a given date.
 
@@ -53,6 +79,48 @@ def _invalidate_leaderboard_cache(target_date=None):
     cache_key = f"leaderboard:v2:{date_value.isoformat()}"
     cache.delete(cache_key)
     cache.delete(f"{cache_key}:lock")
+
+
+def _send_password_reset_email(user):
+    """Send password-reset email with uid/token link for a user."""
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    reset_link = (
+        f"{settings.FRONTEND_APP_URL.rstrip('/')}"
+        f"{settings.PASSWORD_RESET_PATH}?uid={uid}&token={token}"
+    )
+
+    subject = "Restablece tu contraseña en VOLICION"
+    message = (
+        "Recibimos una solicitud para restablecer tu contraseña.\n\n"
+        f"Abre este enlace para continuar:\n{reset_link}\n\n"
+        "Si no solicitaste este cambio, puedes ignorar este correo."
+    )
+
+    send_mail(
+        subject=subject,
+        message=message,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[user.email],
+        fail_silently=False,
+    )
+
+
+def _increment_token_version(user):
+    profile, _ = UserProfile.objects.get_or_create(user=user)
+    with transaction.atomic():
+        profile = UserProfile.objects.select_for_update().get(user=user)
+        profile.token_version += 1
+        profile.save(update_fields=["token_version"])
+        return profile.token_version
+
+
+def _next_monday(from_date):
+    """Return the Monday of the next week relative to `from_date`."""
+    days_until_monday = (7 - from_date.weekday()) % 7
+    if days_until_monday == 0:
+        days_until_monday = 7
+    return from_date + timedelta(days=days_until_monday)
 
 
 def _build_schedule_map(habits):
@@ -85,13 +153,27 @@ def _build_schedule_map(habits):
 def _days_for_habit_on_date(habit, target_date, schedule_map):
     """Resolve active weekdays for a habit on a target date."""
     entries = schedule_map.get(habit.id, [])
-    days = habit.days
+    days = []
     for schedule in entries:
         if schedule.effective_from <= target_date:
             days = schedule.days
         else:
             break
     return days
+
+
+def _habit_has_activity_on_date(habit, target_date, schedule_map, logs_map=None):
+    """Return True when a habit should be visible on a date."""
+    if target_date < habit.start_date:
+        return False
+    if habit.archived_at and target_date >= habit.archived_at:
+        return False
+
+    if logs_map and logs_map.get((habit.id, str(target_date))):
+        return True
+
+    weekday = _weekday_name(target_date)
+    return weekday in _days_for_habit_on_date(habit, target_date, schedule_map)
 
 
 def _metrics_baseline_date(user, habit_list):
@@ -189,18 +271,19 @@ def _compute_range_metrics(user, start_date, end_date, habit_list=None, schedule
     for current_date in dates:
         done_count = 0
         total_count = 0
-        weekday = current_date.strftime("%A").lower()
+        weekday = _weekday_name(current_date)
 
         for habit in habit_list:
-            if not _habit_is_active_on_date(habit, current_date):
-                continue
+            status_value = logs_map.get((habit.id, str(current_date)))
+            if status_value is None:
+                if not _habit_is_active_on_date(habit, current_date):
+                    continue
 
-            active_days = _days_for_habit_on_date(habit, current_date, schedule_map)
-            if weekday not in active_days:
-                continue
+                active_days = _days_for_habit_on_date(habit, current_date, schedule_map)
+                if weekday not in active_days:
+                    continue
 
             total_count += 1
-            status_value = logs_map.get((habit.id, str(current_date)))
             if status_value == "done":
                 done_count += 1
 
@@ -287,9 +370,9 @@ def _compute_habit_streaks(habit, schedule_map, logs_map, end_date):
     cursor = habit.start_date
 
     while cursor <= end_date:
-        weekday = cursor.strftime("%A").lower()
+        weekday = _weekday_name(cursor)
         active_days = _days_for_habit_on_date(habit, cursor, schedule_map)
-        if weekday in active_days:
+        if weekday in active_days or logs_map.get((habit.id, str(cursor))):
             applicable_dates.append(cursor)
         cursor += timedelta(days=1)
 
@@ -328,11 +411,17 @@ class HabitViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Return active habits for the authenticated user."""
-        return Habit.objects.filter(user=self.request.user, is_archived=False)
+        today = timezone.localdate()
+        return Habit.objects.filter(user=self.request.user).filter(
+            Q(archived_at__isnull=True) | Q(archived_at__gt=today)
+        )
 
     def perform_create(self, serializer):
         """Attach authenticated user to newly created habit."""
-        serializer.save(user=self.request.user)
+        serializer.save(
+            user=self.request.user,
+            start_date=_next_monday(timezone.localdate()),
+        )
         _invalidate_leaderboard_cache()
 
     def perform_update(self, serializer):
@@ -349,28 +438,56 @@ class HabitViewSet(viewsets.ModelViewSet):
             )
         return None
 
+    def _pending_removal_response(self):
+        return Response(
+            _error_payload(
+                "Este hábito ya está programado para eliminarse el próximo lunes.",
+                code="habit_already_scheduled_for_removal",
+            ),
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    def _is_pending_removal(self, habit):
+        return bool(habit.archived_at and habit.archived_at > timezone.localdate())
+
     def update(self, request, *args, **kwargs):
         sunday_check = self._require_sunday()
         if sunday_check:
             return sunday_check
+        habit = self.get_object()
+        if self._is_pending_removal(habit):
+            return self._pending_removal_response()
         return super().update(request, *args, **kwargs)
 
     def partial_update(self, request, *args, **kwargs):
         sunday_check = self._require_sunday()
         if sunday_check:
             return sunday_check
+        habit = self.get_object()
+        if self._is_pending_removal(habit):
+            return self._pending_removal_response()
         return super().partial_update(request, *args, **kwargs)
 
     def perform_destroy(self, instance):
-        instance.is_archived = True
-        instance.archived_at = timezone.localdate() + timedelta(days=1)
-        instance.save(update_fields=['is_archived', 'archived_at'])
+        effective_removal = _next_monday(timezone.localdate())
+
+        # If habit never started and has no logs, remove it completely.
+        if instance.start_date >= effective_removal and not HabitLog.objects.filter(habit=instance).exists():
+            instance.delete()
+            _invalidate_leaderboard_cache()
+            return
+
+        instance.archived_at = effective_removal
+        instance.save(update_fields=['archived_at'])
         _invalidate_leaderboard_cache()
 
     def destroy(self, request, *args, **kwargs):
         sunday_check = self._require_sunday()
         if sunday_check:
             return sunday_check
+        habit = self.get_object()
+        if self._is_pending_removal(habit):
+            return self._pending_removal_response()
         return super().destroy(request, *args, **kwargs)
 
     @action(detail=False, methods=['get'], url_path='by-date')
@@ -386,9 +503,9 @@ class HabitViewSet(viewsets.ModelViewSet):
         except ValueError:
             return Response(_error_payload("Invalid date format", code="invalid_date_format"), status=400)
 
-        weekday = date.strftime("%A").lower()
+        weekday = _weekday_name(date)
 
-        habits = list(self.get_queryset())
+        habits = list(Habit.objects.filter(user=request.user))
         result = []
         schedule_map = _build_schedule_map(habits)
 
@@ -399,18 +516,15 @@ class HabitViewSet(viewsets.ModelViewSet):
         logs_map = {log.habit_id: log for log in logs}
 
         for habit in habits:
-            if date < habit.start_date:
-                continue
-
-            if weekday not in _days_for_habit_on_date(habit, date, schedule_map):
-                continue
-
             log = logs_map.get(habit.id)
+
+            if not _habit_has_activity_on_date(habit, date, schedule_map, logs_map):
+                continue
 
             result.append({
                 "habit_id": habit.id,
                 "name": habit.name,
-                "status": log.status if log else "pending"
+                "status": log.status if log else "pending",
             })
 
         return Response(result)
@@ -457,16 +571,40 @@ class HabitViewSet(viewsets.ModelViewSet):
         daily_stats = {str(date): {"done": 0, "total": 0} for date in week_dates}
 
         for habit in habits:
+            has_applicable_day = False
+            for current_date in week_dates:
+                if _habit_has_activity_on_date(habit, current_date, schedule_map, logs_map):
+                    has_applicable_day = True
+                    break
+
+            if not has_applicable_day:
+                continue
+
             week_data = {}
 
             total_applicable = 0
             total_done = 0
 
             for date in week_dates:
-                weekday = date.strftime("%A").lower()
+                weekday = _weekday_name(date)
                 date_str = str(date)
+                log = logs_map.get((habit.id, date_str))
+
+                if log:
+                    total_applicable += 1
+                    daily_stats[date_str]["total"] += 1
+                    week_data[date_str] = log.status
+
+                    if log.status == "done":
+                        total_done += 1
+                        daily_stats[date_str]["done"] += 1
+                    continue
 
                 if date < habit.start_date:
+                    week_data[date_str] = "skip"
+                    continue
+
+                if not _habit_is_active_on_date(habit, date):
                     week_data[date_str] = "skip"
                     continue
 
@@ -476,17 +614,7 @@ class HabitViewSet(viewsets.ModelViewSet):
 
                 total_applicable += 1
                 daily_stats[date_str]["total"] += 1
-
-                log = logs_map.get((habit.id, date_str))
-
-                if log:
-                    week_data[date_str] = log.status
-
-                    if log.status == "done":
-                        total_done += 1
-                        daily_stats[date_str]["done"] += 1
-                else:
-                    week_data[date_str] = "pending"
+                week_data[date_str] = "pending"
 
             completion_rate = (
                 (total_done / total_applicable) * 100
@@ -500,14 +628,29 @@ class HabitViewSet(viewsets.ModelViewSet):
                 timezone.localdate(),
             )
 
+            pending_removal = False
+            if habit.archived_at:
+                pending_removal = habit.archived_at == (week_dates[-1] + timedelta(days=1))
+
+            editable_effective_date = _next_monday(timezone.localdate())
+            if editable_effective_date < habit.start_date:
+                editable_effective_date = habit.start_date
+
             result.append({
                 "habit_id": habit.id,
                 "name": habit.name,
-                "days": _days_for_habit_on_date(habit, timezone.localdate(), schedule_map),
+                "days": _days_for_habit_on_date(habit, week_dates[0], schedule_map),
+                "editable_days": _days_for_habit_on_date(
+                    habit,
+                    editable_effective_date,
+                    schedule_map,
+                ),
                 "week": week_data,
                 "completion_rate": round(completion_rate, 0),
                 "streak_current": streaks["streak_current"],
                 "streak_best": streaks["streak_best"],
+                "pending_removal": pending_removal,
+                "removal_effective_date": str(habit.archived_at) if habit.archived_at else None,
             })
 
         baseline = _metrics_baseline_date(request.user, habits)
@@ -549,6 +692,7 @@ class HabitViewSet(viewsets.ModelViewSet):
         """Return compact tracker metrics for the selected week."""
         today = timezone.localdate()
         current_week_start = today - timedelta(days=today.weekday())
+        max_future_week_start = current_week_start + timedelta(days=7)
         registration_week_start = _registration_week_start(request.user)
 
         start_date_str = request.query_params.get('start_date')
@@ -573,12 +717,43 @@ class HabitViewSet(viewsets.ModelViewSet):
                 status=400,
             )
 
-        if week_start > current_week_start:
-            return Response(_error_payload("Future weeks are not allowed", code="future_week_not_allowed"), status=400)
+        if week_start > max_future_week_start:
+            return Response(
+                _error_payload(
+                    "Only one future week is available.",
+                    code="future_week_limit_exceeded",
+                ),
+                status=400,
+            )
 
         week_end = week_start + timedelta(days=6)
+        if week_start > today:
+            empty_daily = [
+                {
+                    "date": str(week_start + timedelta(days=i)),
+                    "completion": None,
+                    "done": 0,
+                    "total": 0,
+                }
+                for i in range(7)
+            ]
+            return Response(
+                {
+                    "focus": empty_daily[0],
+                    "focus_date": str(week_start),
+                    "is_current_week": False,
+                    "week": {
+                        "start_date": str(week_start),
+                        "end_date": str(week_end),
+                        "completion": None,
+                    },
+                    "daily": empty_daily,
+                    "baseline_date": str(_metrics_baseline_date(request.user, [])),
+                }
+            )
+
         focus_date = min(week_end, today)
-        payload = _compute_range_metrics(request.user, week_start, focus_date)
+        payload = _compute_range_metrics(request.user, week_start, week_end)
 
         focus_row = next(
             (row for row in payload["daily"] if row["date"] == str(focus_date)),
@@ -598,7 +773,7 @@ class HabitViewSet(viewsets.ModelViewSet):
                 "is_current_week": week_start == current_week_start,
                 "week": {
                     "start_date": str(week_start),
-                    "end_date": str(focus_date),
+                    "end_date": str(week_end),
                     "completion": week_completion,
                 },
                 "daily": payload["daily"],
@@ -676,18 +851,17 @@ class HabitViewSet(viewsets.ModelViewSet):
             users = list(
                 User.objects.filter(is_superuser=False)
                 .annotate(
-                    active_habits_count=Count(
+                    habits_count=Count(
                         'habit',
-                        filter=Q(habit__is_archived=False),
                         distinct=True,
                     )
                 )
-                .filter(active_habits_count__gt=0)
+                .filter(habits_count__gt=0)
                 .select_related('profile')
                 .prefetch_related(
                     Prefetch(
                         'habit_set',
-                        queryset=Habit.objects.filter(is_archived=False)
+                        queryset=Habit.objects
                         .only('id', 'user_id', 'name', 'days', 'start_date', 'archived_at')
                         .prefetch_related(
                             Prefetch(
@@ -699,7 +873,7 @@ class HabitViewSet(viewsets.ModelViewSet):
                                 ).order_by('effective_from'),
                             )
                         ),
-                        to_attr='active_habits',
+                        to_attr='all_habits',
                     )
                 )
                 .order_by('username')[:max_users]
@@ -714,7 +888,6 @@ class HabitViewSet(viewsets.ModelViewSet):
                 )
                 logs = HabitLog.objects.filter(habit__user_id__in=selected_user_ids).order_by('date')
                 logs = logs.filter(
-                    habit__is_archived=False,
                     date__range=(earliest_baseline, today),
                 ).select_related('habit').only('habit_id', 'habit__user_id', 'date', 'status')
                 for log in logs:
@@ -723,7 +896,7 @@ class HabitViewSet(viewsets.ModelViewSet):
             # Calculate schedule-aware metrics for each user
             user_metrics = []
             for user in users:
-                habits = list(getattr(user, 'active_habits', []))
+                habits = list(getattr(user, 'all_habits', []))
                 if not habits:
                     continue
 
@@ -962,6 +1135,141 @@ class ProfileView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+class ProfilePasswordResetView(APIView):
+    """Authenticated endpoint to email a password-reset link to current user."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [LoginRateThrottle]
+
+    def post(self, request):
+        user = request.user
+
+        if not user.email:
+            return Response(
+                _error_payload(
+                    "Tu cuenta no tiene un correo registrado para recuperar contraseña.",
+                    code="email_missing",
+                ),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            _send_password_reset_email(user)
+        except Exception:
+            logger.exception("Failed to send authenticated password reset email for user_id=%s", user.id)
+            return Response(
+                _error_payload(
+                    "No se pudo enviar el correo de recuperación. Intenta nuevamente en unos minutos.",
+                    code="email_send_failed",
+                ),
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return Response(
+            {
+                "detail": "Te enviamos un correo con instrucciones para restablecer tu contraseña.",
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class PasswordResetRequestView(APIView):
+    """Public endpoint to request a password-reset email from login."""
+
+    permission_classes = [AllowAny]
+    throttle_classes = [LoginRateThrottle]
+
+    def post(self, request):
+        email = (request.data.get("email") or "").strip()
+        if not email:
+            return Response(
+                _error_payload(
+                    "El correo electrónico es obligatorio.",
+                    code="email_required",
+                ),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = User.objects.filter(email__iexact=email, is_active=True).first()
+
+        # Avoid account enumeration: return the same success payload either way.
+        if user and user.has_usable_password():
+            try:
+                _send_password_reset_email(user)
+            except Exception:
+                logger.exception("Failed to send public password reset email for user_id=%s", user.id)
+
+        return Response(
+            {
+                "detail": "Si existe una cuenta con ese correo, te enviamos instrucciones para restablecer la contraseña.",
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class PasswordResetConfirmView(APIView):
+    """Public endpoint to set a new password with uid/token credentials."""
+
+    permission_classes = [AllowAny]
+    throttle_classes = [LoginRateThrottle]
+
+    def post(self, request):
+        uid = request.data.get("uid")
+        token = request.data.get("token")
+        new_password = request.data.get("new_password")
+
+        if not uid or not token or not new_password:
+            return Response(
+                _error_payload(
+                    "uid, token y new_password son obligatorios.",
+                    code="reset_payload_required",
+                ),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            user_id = force_str(urlsafe_base64_decode(uid))
+            user = User.objects.get(pk=user_id)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return Response(
+                _error_payload(
+                    "El enlace de recuperación no es válido o expiró.",
+                    code="reset_link_invalid",
+                ),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not default_token_generator.check_token(user, token):
+            return Response(
+                _error_payload(
+                    "El enlace de recuperación no es válido o expiró.",
+                    code="reset_link_invalid",
+                ),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            validate_password(new_password, user)
+        except ValidationError as exc:
+            return Response(
+                _error_payload(
+                    "La nueva contraseña no cumple los requisitos de seguridad.",
+                    code="password_validation_error",
+                    errors=exc.messages,
+                ),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.set_password(new_password)
+        user.save(update_fields=["password"])
+        _increment_token_version(user)
+
+        return Response(
+            {"detail": "Tu contraseña se actualizó correctamente."},
+            status=status.HTTP_200_OK,
+        )
+
+
 class CaseInsensitiveTokenObtainPairView(TokenObtainPairView):
     """JWT token endpoint using case-insensitive username auth serializer."""
 
@@ -1002,7 +1310,7 @@ class CookieTokenRefreshView(TokenRefreshView):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
-        serializer = TokenRefreshSerializer(data={'refresh': refresh_value})
+        serializer = VersionedTokenRefreshSerializer(data={'refresh': refresh_value})
         try:
             serializer.is_valid(raise_exception=True)
         except TokenError:

@@ -4,7 +4,7 @@ const sections = [
   {
     title: "1. Introducción",
     paragraphs: [
-      "Esta Política de Privacidad explica qué datos recopilamos, cómo los usamos y cuáles son tus derechos como usuario de Volicion.",
+      "Esta Política de Privacidad explica qué datos recopilamos, cómo los usamos y cuáles son tus derechos como usuario de VOLICION.",
       "Nuestro objetivo es manejar la información con el menor nivel de fricción posible y solo para operar, proteger y mejorar el servicio.",
     ],
   },
@@ -69,7 +69,7 @@ export default function DataPolicyPage() {
   return (
     <LegalPageShell
       title="Política de Privacidad"
-      description="Aquí se resume cómo tratamos los datos de la cuenta, el uso de la aplicación y la información técnica necesaria para operar Volicion."
+      description="Aquí se resume cómo tratamos los datos de la cuenta, el uso de la aplicación y la información técnica necesaria para operar VOLICION."
       updatedAt="17 de abril de 2026"
     >
       {sections.map((section) => (

@@ -11,6 +11,7 @@ import LoadingSpinner from "./components/LoadingSpinner";
 import SectionTabs from "./components/SectionTabs";
 import WeeklyTable from "./components/WeeklyTable";
 import defaultAvatar from "./assets/default-avatar.svg";
+import { clearHabitOrder } from "./utils/habitOrderStorage";
 
 const HistoryPanel = lazy(() => import("./components/HistoryPanel"));
 const RankingPanel = lazy(() => import("./components/RankingPanel"));
@@ -30,7 +31,7 @@ function App() {
   useEffect(() => {
     const root = document.documentElement;
 
-    document.title = "Volicion | Hábitos, disciplina y progreso";
+    document.title = "VOLICION | Hábitos, disciplina y progreso";
 
     if (theme === "dark") {
       root.classList.add("dark");
@@ -91,10 +92,14 @@ function App() {
   };
 
   const handleLogout = async () => {
-    await logout();
-    setIsAuthenticated(false);
-    setProfile(null);
-    setShowLogoutConfirm(false);
+    try {
+      await logout();
+    } finally {
+      clearHabitOrder(profile?.user_id);
+      setIsAuthenticated(false);
+      setProfile(null);
+      setShowLogoutConfirm(false);
+    }
   };
 
   const notifyMetricsChanged = () => {
@@ -147,7 +152,12 @@ function App() {
       );
     }
 
-    return <WeeklyTable onDataChanged={notifyMetricsChanged} />;
+    return (
+      <WeeklyTable
+        onDataChanged={notifyMetricsChanged}
+        storageNamespace={profile?.user_id}
+      />
+    );
   };
 
   return (
@@ -157,7 +167,7 @@ function App() {
           <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
             <div>
               <h1 className="text-3xl font-semibold tracking-tight">
-                Volicion
+                VOLICION
               </h1>
               <p className="text-slate-500 dark:text-slate-300 mt-1">
                 Construye hábitos, mantén la disciplina y logra tus objetivos.

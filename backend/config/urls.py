@@ -25,7 +25,10 @@ from habits.views import (
     HabitLogViewSet,
     HabitViewSet,
     LogoutView,
+    PasswordResetConfirmView,
+    PasswordResetRequestView,
     ProfileView,
+    ProfilePasswordResetView,
     RegisterView,
 )
 
@@ -39,6 +42,9 @@ urlpatterns = [
     path('api/', include(router.urls)),
     path('api/register/', RegisterView.as_view(), name='register'),
     path('api/profile/', ProfileView.as_view(), name='profile'),
+    path('api/profile/password-reset/', ProfilePasswordResetView.as_view(), name='profile_password_reset'),
+    path('api/password-reset/request/', PasswordResetRequestView.as_view(), name='password_reset_request'),
+    path('api/password-reset/confirm/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
     path('api/logout/', LogoutView.as_view(), name='logout'),
     path('api/token/', CaseInsensitiveTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', CookieTokenRefreshView.as_view(), name='token_refresh'),

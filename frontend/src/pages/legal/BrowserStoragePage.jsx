@@ -4,7 +4,7 @@ const sections = [
   {
     title: "1. Introducción",
     paragraphs: [
-      "Esta Política de Cookies explica cómo usa Volicion tecnologías similares para que la experiencia funcione correctamente, sea segura y se pueda recordar tu sesión.",
+      "Esta Política de Cookies explica cómo usa VOLICION tecnologías similares para que la experiencia funcione correctamente, sea segura y se pueda recordar tu sesión.",
       "Las cookies y almacenamiento local nos ayudan a conservar preferencias y a mantener funciones básicas del sitio.",
     ],
   },
@@ -62,7 +62,7 @@ export default function BrowserStoragePage() {
   return (
     <LegalPageShell
       title="Política de Cookies"
-      description="Esta página resume el uso de cookies y tecnologías similares para mantener la sesión, las preferencias y el funcionamiento normal de Volicion."
+      description="Esta página resume el uso de cookies y tecnologías similares para mantener la sesión, las preferencias y el funcionamiento normal de VOLICION."
       updatedAt="17 de abril de 2026"
     >
       {sections.map((section) => (

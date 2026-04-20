@@ -172,7 +172,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'habits.authentication.TokenVersionJWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
@@ -210,6 +210,17 @@ AUTH_REFRESH_COOKIE_SAMESITE = _normalize_samesite(
 )
 AUTH_REFRESH_COOKIE_SECURE = os.getenv('AUTH_REFRESH_COOKIE_SECURE', 'false').lower() == 'true'
 AUTH_REFRESH_COOKIE_HTTP_ONLY = True
+FRONTEND_APP_URL = os.getenv('FRONTEND_APP_URL', 'http://localhost:5173')
+PASSWORD_RESET_PATH = os.getenv('PASSWORD_RESET_PATH', '/reset-password')
+
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'no-reply@volicion.org')
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'localhost')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '25'))
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'false').lower() == 'true'
+EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'false').lower() == 'true'
 LEADERBOARD_CACHE_TTL = int(os.getenv('LEADERBOARD_CACHE_TTL', '600'))
 LEADERBOARD_TOP_RESULTS = int(os.getenv('LEADERBOARD_TOP_RESULTS', '20'))
 LEADERBOARD_LEADERS_LIMIT = int(os.getenv('LEADERBOARD_LEADERS_LIMIT', '10'))

@@ -1,8 +1,14 @@
 from datetime import date, timedelta
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.core import mail
 from django.conf import settings
 from django.utils import timezone
+from django.test import override_settings
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
+from unittest.mock import patch
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -367,12 +373,26 @@ class HabitApiTests(APITestCase):
 		self.assertIn('week', response.data)
 		self.assertIn('daily', response.data)
 
-	def test_tracker_metrics_rejects_future_week(self):
+	def test_tracker_metrics_allows_future_week(self):
 		self.authenticate('alice', 'Passw0rd123')
 
 		future_week = self.week_start + timedelta(days=7)
 		response = self.client.get(f'/api/habits/tracker-metrics/?start_date={future_week}')
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+		self.assertEqual(response.data['week']['start_date'], str(future_week))
+		self.assertIsNone(response.data['week']['completion'])
+		self.assertEqual(response.data['focus_date'], str(future_week))
+		self.assertIsNone(response.data['focus']['completion'])
+		self.assertEqual(len(response.data['daily']), 7)
+		self.assertTrue(all(day['completion'] is None for day in response.data['daily']))
+
+	def test_tracker_metrics_rejects_more_than_one_future_week(self):
+		self.authenticate('alice', 'Passw0rd123')
+
+		future_week = self.week_start + timedelta(days=14)
+		response = self.client.get(f'/api/habits/tracker-metrics/?start_date={future_week}')
 		self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+		self.assertEqual(response.data.get('code'), 'future_week_limit_exceeded')
 
 	def test_tracker_metrics_normalizes_non_monday_start_date(self):
 		self.authenticate('alice', 'Passw0rd123')
@@ -452,6 +472,57 @@ class HabitApiTests(APITestCase):
 				self.assertEqual(row['weekly_completion'], 0)
 				self.assertEqual(row['monthly_completion'], 0)
 				self.assertEqual(row['historical_completion'], 0)
+
+	def test_leaderboard_includes_user_with_only_archived_habits_metrics(self):
+		self.authenticate('alice', 'Passw0rd123')
+		cache.clear()
+
+		archived_user = User.objects.create_user(
+			username='carol',
+			password='Passw0rd123',
+			email='carol@example.com',
+		)
+		archived_user.date_joined = timezone.now() - timedelta(days=30)
+		archived_user.save(update_fields=['date_joined'])
+
+		archived_habit = Habit.objects.create(
+			user=archived_user,
+			name='Archived reading',
+			days=['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
+			start_date=self.today - timedelta(days=10),
+			is_archived=True,
+			archived_at=self.today,
+		)
+
+		for offset in range(1, 6):
+			HabitLog.objects.create(
+				habit=archived_habit,
+				date=str(self.today - timedelta(days=offset)),
+				status='done',
+			)
+
+		response = self.client.get('/api/habits/leaderboard/?days=30')
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+		rows_by_user = {row['username']: row for row in response.data['results']}
+		self.assertIn('carol', rows_by_user)
+		self.assertGreater(rows_by_user['carol']['historical_completion'], 0)
+
+	def test_leaderboard_excludes_user_without_habits_or_metrics(self):
+		self.authenticate('alice', 'Passw0rd123')
+		cache.clear()
+
+		User.objects.create_user(
+			username='newbie',
+			password='Passw0rd123',
+			email='newbie@example.com',
+		)
+
+		response = self.client.get('/api/habits/leaderboard/?days=30')
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+		usernames = [row['username'] for row in response.data['results']]
+		self.assertNotIn('newbie', usernames)
 
 	def test_leaderboard_highlights_use_top_score_per_metric(self):
 		self.authenticate('alice', 'Passw0rd123')
@@ -561,4 +632,368 @@ class HabitApiTests(APITestCase):
 		self.authenticate('alice', 'Passw0rd123')
 		response = self.client.delete(f'/api/habits/{self.habit_user_1.id}/')
 		self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+		self.assertIn('detail', response.data)
+
+	def test_create_habit_starts_next_monday(self):
+		self.authenticate('alice', 'Passw0rd123')
+
+		response = self.client.post(
+			'/api/habits/',
+			{
+				'name': 'New delayed habit',
+				'days': ['monday', 'wednesday'],
+			},
+			format='json',
+		)
+		self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+		expected_start = self.today + timedelta(days=((7 - self.today.weekday()) % 7 or 7))
+		created_habit = Habit.objects.get(id=response.data['id'])
+		self.assertEqual(created_habit.start_date, expected_start)
+
+	def test_edit_habit_days_apply_next_monday_when_sunday(self):
+		if self.today.weekday() != 6:
+			self.skipTest('Test requires Sunday runtime day.')
+
+		self.authenticate('alice', 'Passw0rd123')
+		current_days = list(self.habit_user_1.days)
+
+		response = self.client.patch(
+			f'/api/habits/{self.habit_user_1.id}/',
+			{'days': ['tuesday', 'thursday']},
+			format='json',
+		)
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+		self.habit_user_1.refresh_from_db()
+		self.assertEqual(self.habit_user_1.days, current_days)
+
+		next_monday = self.today + timedelta(days=1)
+		scheduled = self.habit_user_1.schedules.get(effective_from=next_monday)
+		self.assertEqual(scheduled.days, ['tuesday', 'thursday'])
+
+	def test_edit_newly_created_next_week_habit_updates_same_upcoming_week(self):
+		if self.today.weekday() != 6:
+			self.skipTest('Test requires Sunday runtime day.')
+
+		self.authenticate('alice', 'Passw0rd123')
+
+		create_response = self.client.post(
+			'/api/habits/',
+			{
+				'name': 'Cocinar',
+				'days': ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
+			},
+			format='json',
+		)
+		self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+
+		habit_id = create_response.data['id']
+		edit_response = self.client.patch(
+			f'/api/habits/{habit_id}/',
+			{'days': ['monday']},
+			format='json',
+		)
+		self.assertEqual(edit_response.status_code, status.HTTP_200_OK)
+
+		next_week_start = self.week_start + timedelta(days=7)
+		weekly_response = self.client.get(
+			f'/api/habits/weekly/?start_date={next_week_start}'
+		)
+		self.assertEqual(weekly_response.status_code, status.HTTP_200_OK)
+
+		habit_row = next(
+			item for item in weekly_response.data['habits']
+			if item['habit_id'] == habit_id
+		)
+		monday = str(next_week_start)
+		tuesday = str(next_week_start + timedelta(days=1))
+		self.assertEqual(habit_row['week'][monday], 'pending')
+		self.assertEqual(habit_row['week'][tuesday], 'skip')
+		self.assertEqual(habit_row['days'], ['monday'])
+
+	def test_edit_habit_to_all_days_reflects_in_next_week_days_payload(self):
+		if self.today.weekday() != 6:
+			self.skipTest('Test requires Sunday runtime day.')
+
+		self.authenticate('alice', 'Passw0rd123')
+
+		response = self.client.patch(
+			f'/api/habits/{self.habit_user_1.id}/',
+			{
+				'days': [
+					'monday',
+					'tuesday',
+					'wednesday',
+					'thursday',
+					'friday',
+					'saturday',
+					'sunday',
+				]
+			},
+			format='json',
+		)
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+		next_week_start = self.week_start + timedelta(days=7)
+		weekly_response = self.client.get(
+			f'/api/habits/weekly/?start_date={next_week_start}'
+		)
+		self.assertEqual(weekly_response.status_code, status.HTTP_200_OK)
+
+		habit_row = next(
+			item for item in weekly_response.data['habits']
+			if item['habit_id'] == self.habit_user_1.id
+		)
+		next_monday = self.today + timedelta(days=1)
+		scheduled = self.habit_user_1.schedules.get(effective_from=next_monday)
+		self.assertEqual(
+			scheduled.days,
+			['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
+		)
+
+	def test_weekly_returns_editable_days_for_next_effective_schedule(self):
+		if self.today.weekday() != 6:
+			self.skipTest('Test requires Sunday runtime day.')
+
+		self.authenticate('alice', 'Passw0rd123')
+
+		response = self.client.patch(
+			f'/api/habits/{self.habit_user_1.id}/',
+			{
+				'days': [
+					'monday',
+					'tuesday',
+					'wednesday',
+					'thursday',
+					'friday',
+					'saturday',
+					'sunday',
+				]
+			},
+			format='json',
+		)
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+		weekly_response = self.client.get(f'/api/habits/weekly/?start_date={self.week_start}')
+		self.assertEqual(weekly_response.status_code, status.HTTP_200_OK)
+
+		habit_row = next(
+			item for item in weekly_response.data['habits']
+			if item['habit_id'] == self.habit_user_1.id
+		)
+		self.assertEqual(
+			habit_row['editable_days'],
+			['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
+		)
+
+	def test_edit_habit_name_is_rejected_even_on_sunday(self):
+		if self.today.weekday() != 6:
+			self.skipTest('Test requires Sunday runtime day.')
+
+		self.authenticate('alice', 'Passw0rd123')
+
+		response = self.client.patch(
+			f'/api/habits/{self.habit_user_1.id}/',
+			{'name': 'Nombre nuevo no permitido'},
+			format='json',
+		)
+		self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+		self.assertIn('name', response.data.get('errors', {}))
+
+	def test_delete_habit_effective_next_monday_when_sunday(self):
+		if self.today.weekday() != 6:
+			self.skipTest('Test requires Sunday runtime day.')
+
+		self.authenticate('alice', 'Passw0rd123')
+
+		response = self.client.delete(f'/api/habits/{self.habit_user_1.id}/')
+		self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+		self.habit_user_1.refresh_from_db()
+		self.assertEqual(self.habit_user_1.archived_at, self.today + timedelta(days=1))
+		self.assertFalse(self.habit_user_1.is_archived)
+
+		weekly_response = self.client.get(f'/api/habits/weekly/?start_date={self.week_start}')
+		self.assertEqual(weekly_response.status_code, status.HTTP_200_OK)
+		habit_row = next(
+			item for item in weekly_response.data['habits']
+			if item['habit_id'] == self.habit_user_1.id
+		)
+		self.assertTrue(habit_row['pending_removal'])
+		self.assertEqual(habit_row['removal_effective_date'], str(self.today + timedelta(days=1)))
+
+		second_delete = self.client.delete(f'/api/habits/{self.habit_user_1.id}/')
+		self.assertEqual(second_delete.status_code, status.HTTP_400_BAD_REQUEST)
+		self.assertEqual(second_delete.data.get('code'), 'habit_already_scheduled_for_removal')
+
+		next_week_start = self.week_start + timedelta(days=7)
+		next_week_response = self.client.get(
+			f'/api/habits/weekly/?start_date={next_week_start}'
+		)
+		self.assertEqual(next_week_response.status_code, status.HTTP_200_OK)
+		next_week_habit_ids = [item['habit_id'] for item in next_week_response.data['habits']]
+		self.assertNotIn(self.habit_user_1.id, next_week_habit_ids)
+
+	def test_delete_never_started_habit_removes_it_completely_when_sunday(self):
+		if self.today.weekday() != 6:
+			self.skipTest('Test requires Sunday runtime day.')
+
+		self.authenticate('alice', 'Passw0rd123')
+
+		create_response = self.client.post(
+			'/api/habits/',
+			{
+				'name': 'Temporary habit',
+				'days': ['monday', 'tuesday'],
+			},
+			format='json',
+		)
+		self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+
+		habit_id = create_response.data['id']
+		delete_response = self.client.delete(f'/api/habits/{habit_id}/')
+		self.assertEqual(delete_response.status_code, status.HTTP_204_NO_CONTENT)
+
+		self.assertFalse(Habit.objects.filter(id=habit_id).exists())
+
+	@override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+	def test_profile_password_reset_sends_email_to_authenticated_user(self):
+		self.authenticate('alice', 'Passw0rd123')
+
+		response = self.client.post('/api/profile/password-reset/', {}, format='json')
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+		self.assertEqual(len(mail.outbox), 1)
+		self.assertIn('VOLICION', mail.outbox[0].subject)
+		self.assertIn('alice@example.com', mail.outbox[0].to)
+
+	def test_profile_password_reset_requires_email(self):
+		self.user_1.email = ''
+		self.user_1.save(update_fields=['email'])
+		self.authenticate('alice', 'Passw0rd123')
+
+		response = self.client.post('/api/profile/password-reset/', {}, format='json')
+		self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+		self.assertEqual(response.data.get('code'), 'email_missing')
+
+	def test_password_reset_confirm_updates_password(self):
+		uid = urlsafe_base64_encode(force_bytes(self.user_1.pk))
+		token = default_token_generator.make_token(self.user_1)
+
+		response = self.client.post(
+			'/api/password-reset/confirm/',
+			{
+				'uid': uid,
+				'token': token,
+				'new_password': 'N3wPassw0rd#2026',
+			},
+			format='json',
+		)
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+		login_response = self.client.post(
+			'/api/token/',
+			{'username': 'alice', 'password': 'N3wPassw0rd#2026'},
+			format='json',
+		)
+		self.assertEqual(login_response.status_code, status.HTTP_200_OK)
+
+	def test_password_reset_confirm_invalidates_previous_tokens(self):
+		login_response = self.client.post(
+			'/api/token/',
+			{'username': 'alice', 'password': 'Passw0rd123'},
+			format='json',
+		)
+		self.assertEqual(login_response.status_code, status.HTTP_200_OK)
+		access = login_response.data['access']
+		refresh_token = login_response.cookies[settings.AUTH_REFRESH_COOKIE].value
+
+		uid = urlsafe_base64_encode(force_bytes(self.user_1.pk))
+		token = default_token_generator.make_token(self.user_1)
+		reset_response = self.client.post(
+			'/api/password-reset/confirm/',
+			{
+				'uid': uid,
+				'token': token,
+				'new_password': 'N3wPassw0rd#2026',
+			},
+			format='json',
+		)
+		self.assertEqual(reset_response.status_code, status.HTTP_200_OK)
+
+		self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {access}')
+		profile_response = self.client.get('/api/profile/')
+		self.assertEqual(profile_response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+		refresh_response = self.client.post(
+			'/api/token/refresh/',
+			{},
+			format='json',
+			HTTP_COOKIE=f"{settings.AUTH_REFRESH_COOKIE}={refresh_token}",
+		)
+		self.assertEqual(refresh_response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+	def test_password_reset_confirm_rejects_invalid_token(self):
+		uid = urlsafe_base64_encode(force_bytes(self.user_1.pk))
+
+		response = self.client.post(
+			'/api/password-reset/confirm/',
+			{
+				'uid': uid,
+				'token': 'invalid-token',
+				'new_password': 'N3wPassw0rd#2026',
+			},
+			format='json',
+		)
+		self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+		self.assertEqual(response.data.get('code'), 'reset_link_invalid')
+
+	@override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+	def test_password_reset_request_sends_email_for_existing_account(self):
+		response = self.client.post(
+			'/api/password-reset/request/',
+			{'email': 'alice@example.com'},
+			format='json',
+		)
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+		self.assertEqual(len(mail.outbox), 1)
+		self.assertIn('alice@example.com', mail.outbox[0].to)
+
+	@override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+	def test_password_reset_request_returns_generic_success_for_unknown_email(self):
+		response = self.client.post(
+			'/api/password-reset/request/',
+			{'email': 'nobody@example.com'},
+			format='json',
+		)
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+		self.assertEqual(len(mail.outbox), 0)
+
+	def test_password_reset_request_requires_email(self):
+		response = self.client.post('/api/password-reset/request/', {}, format='json')
+		self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+		self.assertEqual(response.data.get('code'), 'email_required')
+
+	@override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+	@patch('habits.views.send_mail', side_effect=Exception('smtp down'))
+	def test_profile_password_reset_returns_error_when_email_fails(self, mock_send_mail):
+		self.authenticate('alice', 'Passw0rd123')
+
+		with self.assertLogs('habits.views', level='ERROR'):
+			response = self.client.post('/api/profile/password-reset/', {}, format='json')
+
+		self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+		self.assertEqual(response.data.get('code'), 'email_send_failed')
+
+	@override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+	@patch('habits.views.send_mail', side_effect=Exception('smtp down'))
+	def test_password_reset_request_logs_email_failure_but_returns_generic_success(self, mock_send_mail):
+		with self.assertLogs('habits.views', level='ERROR'):
+			response = self.client.post(
+				'/api/password-reset/request/',
+				{'email': 'alice@example.com'},
+				format='json',
+			)
+
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
 		self.assertIn('detail', response.data)

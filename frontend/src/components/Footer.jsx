@@ -15,7 +15,7 @@ export default function Footer() {
       <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 py-8 sm:py-10">
         <div className="grid gap-8 md:grid-cols-[1.4fr_1fr]">
           <div>
-            <p className="text-lg font-semibold tracking-tight">Volicion</p>
+            <p className="text-lg font-semibold tracking-tight">VOLICION</p>
             <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-300 max-w-md">
               Construye hábitos, mantén la disciplina y avanza con claridad. Un
               espacio simple para crecer con consistencia.
@@ -42,7 +42,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-8 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between border-t border-slate-200/80 dark:border-slate-700 pt-4 text-sm text-slate-500 dark:text-slate-400">
-          <p>© {year} Volicion. Todos los derechos reservados.</p>
+          <p>© {year} VOLICION. Todos los derechos reservados.</p>
           <p>Hecho para disciplina, constancia y mejora personal.</p>
         </div>
       </div>
