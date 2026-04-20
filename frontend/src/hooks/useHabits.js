@@ -8,40 +8,27 @@ import {
   updateHabit,
   deleteHabit,
 } from "../api/habits";
+import {
+  getCurrentWeekStartIsoDate,
+  getTodayIsoDate,
+  isFutureIsoDate,
+  parseIsoDateLocal,
+  toLocalIsoDate,
+} from "../utils/dateUtils";
 
-/**
- * Convert a Date into local YYYY-MM-DD format.
- */
-const toLocalIsoDate = (date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+const getWeekStart = (referenceDate = new Date()) =>
+  getCurrentWeekStartIsoDate(referenceDate);
+
+const getMaxFutureWeekStart = (referenceDate = new Date()) => {
+  const futureWeekStart = new Date(referenceDate);
+  futureWeekStart.setDate(futureWeekStart.getDate() + 7);
+  return getCurrentWeekStartIsoDate(futureWeekStart);
 };
 
-const getWeekStart = () => {
-  const now = new Date();
-  const day = now.getDay();
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-  now.setDate(now.getDate() + diffToMonday);
-  return toLocalIsoDate(now);
-};
-
-const getMaxFutureWeekStart = () => {
-  const now = new Date();
-  const day = now.getDay();
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-  now.setDate(now.getDate() + diffToMonday + 7);
-  return toLocalIsoDate(now);
-};
-
-/**
- * Normalize any ISO date to the Monday of that week.
- */
 const getWeekStartFromIsoDate = (isoDate) => {
-  if (!isoDate) return null;
-  const date = new Date(`${isoDate}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return null;
+  const date = parseIsoDateLocal(isoDate);
+  if (!date) return null;
+
   const day = date.getDay();
   const diffToMonday = day === 0 ? -6 : 1 - day;
   date.setDate(date.getDate() + diffToMonday);
@@ -138,19 +125,9 @@ export const useHabits = ({ onDataChanged } = {}) => {
     return "pending";
   };
 
-  const isFutureDate = (value) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const selected = new Date(`${value}T00:00:00`);
-    return selected > today;
-  };
+  const isFutureDate = (value) => isFutureIsoDate(value);
 
-  const isTodayDate = (value) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const selected = new Date(`${value}T00:00:00`);
-    return selected.getTime() === today.getTime();
-  };
+  const isTodayDate = (value) => value === getTodayIsoDate();
 
   const handleUpdate = async (habitId, date, currentStatus) => {
     if (currentStatus === "skip") {

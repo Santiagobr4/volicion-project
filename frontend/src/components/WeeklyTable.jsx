@@ -8,6 +8,7 @@ import ConfirmDialog from "./ConfirmDialog";
 import TrackerInsights from "./TrackerInsights";
 import Toast from "./Toast";
 import { getIsoDateLabel, getIsoDayNameLong } from "../utils/dateLabels";
+import { getCurrentWeekStartIsoDate } from "../utils/dateUtils";
 import { loadHabitOrder, saveHabitOrder } from "../utils/habitOrderStorage";
 import LoadingSpinner from "./LoadingSpinner";
 
@@ -43,19 +44,33 @@ export default function WeeklyTable({ onDataChanged, storageNamespace }) {
   );
   const canManageHabits = new Date().getDay() === 0;
   const [draftOrder, setDraftOrder] = useState([]);
+  const isCurrentWeek = startDate === getCurrentWeekStartIsoDate();
+  const observedDays = (trackerMetrics?.daily || []).filter(
+    (row) => row?.date,
+  ).length;
+  const evaluatedDays = Math.max(
+    trackerMetrics?.evaluated_days ?? 0,
+    observedDays,
+  );
+  const totalDays = Math.max(trackerMetrics?.total_days ?? 7, evaluatedDays, 1);
+  const weekPhase = trackerMetrics?.week_phase;
+  const hasTrackedEntries = (trackerMetrics?.daily || []).some(
+    (row) => (row?.done ?? 0) + (row?.missed ?? 0) > 0,
+  );
+  const isFirstWeek = trackerMetrics?.baseline_date === startDate;
+  const hasEvaluatedWindow = weekPhase !== "future" && evaluatedDays > 0;
 
-  const getCurrentWeekStart = () => {
-    const now = new Date();
-    const day = now.getDay();
-    const diffToMonday = day === 0 ? -6 : 1 - day;
-    now.setDate(now.getDate() + diffToMonday);
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const date = String(now.getDate()).padStart(2, "0");
-    return `${year}-${month}-${date}`;
-  };
-
-  const isCurrentWeek = startDate === getCurrentWeekStart();
+  const weekProgressLabel =
+    weekPhase === "future"
+      ? "Semana aún no inicia"
+      : `Día ${Math.min(evaluatedDays, totalDays)} de ${totalDays}`;
+  const progressPercent =
+    weekPhase === "future"
+      ? 0
+      : Math.max(
+          0,
+          Math.min(100, Math.round((evaluatedDays / totalDays) * 100)),
+        );
 
   const orderedActiveIds = useMemo(() => {
     const activeIds = data
@@ -207,6 +222,8 @@ export default function WeeklyTable({ onDataChanged, storageNamespace }) {
   const activeHabits = orderedHabits.filter(
     (habit) => !habit.removal_effective_date,
   );
+  const hasNoWeeklyRecords =
+    orderedHabits.length > 0 && hasEvaluatedWindow && !hasTrackedEntries;
 
   const openOrderModal = () => {
     setDraftOrder([...orderedActiveIds]);
@@ -314,10 +331,24 @@ export default function WeeklyTable({ onDataChanged, storageNamespace }) {
         <p className="text-sm text-slate-500 dark:text-slate-300 mt-3">
           Semana del {startDate}
         </p>
-        <p className="text-xs text-slate-500 dark:text-slate-300 mt-1">
-          Los cambios de crear, editar o eliminar hábitos se aplican desde el
-          lunes de la próxima semana.
-        </p>
+        <div className="mt-2 max-w-md space-y-1.5">
+          <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+            {weekProgressLabel}
+          </p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            Avance de la semana (tiempo)
+          </p>
+          <div
+            className="h-1 rounded-full bg-slate-200 dark:bg-slate-700/80 overflow-hidden"
+            title="Esta barra muestra en qué día de la semana estás, no el cumplimiento de hábitos."
+          >
+            <div
+              className="h-full rounded-full bg-slate-500 dark:bg-slate-300 transition-[width] duration-300 ease-out"
+              style={{ width: `${progressPercent}%` }}
+              aria-label={`Avance semanal ${progressPercent}%`}
+            />
+          </div>
+        </div>
       </div>
 
       <div
@@ -325,13 +356,41 @@ export default function WeeklyTable({ onDataChanged, storageNamespace }) {
       >
         {orderedHabits.length === 0 ? (
           <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/60 p-5 text-center">
-            <p className="text-slate-600 dark:text-slate-300">
-              Aún no tienes hábitos. Crea uno para empezar.
+            <p className="text-slate-700 dark:text-slate-200 font-medium">
+              Aún no tienes hábitos activos esta semana.
+            </p>
+            <p className="text-sm text-slate-500 dark:text-slate-300 mt-1">
+              Crea tu primer hábito para empezar a ver progreso diario, rachas e
+              insights.
             </p>
           </div>
         ) : (
           <>
-            <div className="md:hidden space-y-3">
+            {weekPhase === "future" && (
+              <div className="mb-4 rounded-xl border border-sky-200 dark:border-sky-800/70 bg-sky-50/80 dark:bg-sky-950/20 px-4 py-3">
+                <p className="text-sm text-sky-900 dark:text-sky-200">
+                  Estás viendo una semana futura. Los hábitos se habilitarán
+                  cuando llegue esa fecha.
+                </p>
+              </div>
+            )}
+
+            {hasNoWeeklyRecords && (
+              <div className="mb-4 rounded-xl border border-amber-200 dark:border-amber-800/70 bg-amber-50/80 dark:bg-amber-950/20 px-4 py-3">
+                <p className="text-sm text-amber-900 dark:text-amber-200 font-medium">
+                  {isFirstWeek && evaluatedDays <= 1
+                    ? "Primer día de uso: aún no hay actividad registrada"
+                    : "Semana sin registros todavía"}
+                </p>
+                <p className="text-xs text-amber-800/90 dark:text-amber-300 mt-1">
+                  {isFirstWeek && evaluatedDays <= 1
+                    ? "Empieza con un hábito sencillo hoy para construir inercia desde el inicio."
+                    : "Marca al menos un hábito hoy para desbloquear recomendaciones más precisas."}
+                </p>
+              </div>
+            )}
+
+            <div className="lg:hidden space-y-3">
               {orderedHabits.map((habit) => (
                 <HabitCardMobile
                   key={`mobile-${habit.habit_id}`}
@@ -345,8 +404,11 @@ export default function WeeklyTable({ onDataChanged, storageNamespace }) {
               ))}
             </div>
 
-            <div className="hidden md:block max-w-full overflow-x-auto pb-1">
-              <table className="w-full text-center border-separate border-spacing-y-2 min-w-[760px] lg:min-w-[920px]">
+            <div className="hidden lg:block max-w-full overflow-x-auto pb-1">
+              <table
+                className="w-full text-center border-separate border-spacing-y-2"
+                style={{ minWidth: "860px" }}
+              >
                 <thead>
                   <tr>
                     <th className="text-left px-2 sm:px-3 py-2 min-w-40 sm:min-w-52 text-slate-500 text-sm font-medium">

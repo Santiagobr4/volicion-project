@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="es">
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      background: #f8fafc;
+      color: #0f172a;
+      font-family: Arial, Helvetica, sans-serif;
+    "
+  >
+    <table
+      role="presentation"
+      width="100%"
+      cellspacing="0"
+      cellpadding="0"
+      style="background: #f8fafc; padding: 24px 12px"
+    >
+      <tr>
+        <td align="center">
+          <table
+            role="presentation"
+            width="100%"
+            cellspacing="0"
+            cellpadding="0"
+            style="
+              max-width: 600px;
+              background: #ffffff;
+              border: 1px solid #e2e8f0;
+              border-radius: 24px;
+              overflow: hidden;
+            "
+          >
+            <tr>
+              <td style="padding: 32px">
+                <p
+                  style="
+                    margin: 0 0 12px;
+                    font-size: 12px;
+                    line-height: 1.4;
+                    letter-spacing: 0.22em;
+                    text-transform: uppercase;
+                    color: #64748b;
+                  "
+                >
+                  {{ brand_name }}
+                </p>
+                <h1
+                  style="
+                    margin: 0 0 16px;
+                    font-size: 28px;
+                    line-height: 1.2;
+                    color: #0f172a;
+                  "
+                >
+                  {% block title %}{% endblock %}
+                </h1>
+                <div style="font-size: 16px; line-height: 1.7; color: #334155">
+                  {% block content %}{% endblock %}
+                </div>
+                {% block cta %}{% endblock %}
+                <p
+                  style="
+                    margin: 24px 0 0;
+                    font-size: 13px;
+                    line-height: 1.6;
+                    color: #64748b;
+                  "
+                >
+                  {% block footer %}{% endblock %}
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

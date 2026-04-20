@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { confirmPasswordReset, getApiErrorMessage } from "../api/auth";
+import {
+  buttonClassName,
+  helpTextClassName,
+  inputClassName,
+  labelClassName,
+  panelShellClassName,
+} from "../components/ui.js";
 
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
@@ -70,19 +77,21 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <section className="max-w-xl mx-auto rounded-3xl border border-slate-200/80 dark:border-slate-700 bg-white/90 dark:bg-slate-900/85 shadow-sm p-5 sm:p-6 md:p-8">
+    <section
+      className={`${panelShellClassName} max-w-xl mx-auto p-5 sm:p-6 md:p-8`}
+    >
       <p className="text-xs uppercase tracking-[0.22em] text-slate-500 dark:text-slate-300">
         VOLICION
       </p>
       <h1 className="mt-3 text-3xl font-semibold tracking-tight">
         Restablecer contraseña
       </h1>
-      <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+      <p className={`mt-2 ${helpTextClassName}`}>
         Ingresa tu nueva contraseña para recuperar el acceso a tu cuenta.
       </p>
 
       {!hasResetParams && (
-        <p className="mt-4 text-sm text-red-500">
+        <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300">
           El enlace no contiene los datos necesarios. Vuelve a pedir el correo
           desde tu perfil.
         </p>
@@ -90,9 +99,7 @@ export default function ResetPasswordPage() {
 
       <form onSubmit={handleSubmit} className="mt-5 space-y-4">
         <div>
-          <label className="block text-sm mb-1 text-slate-500 dark:text-slate-300">
-            Nueva contraseña
-          </label>
+          <label className={`${labelClassName} mb-1`}>Nueva contraseña</label>
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
@@ -101,12 +108,15 @@ export default function ResetPasswordPage() {
               placeholder="Mínimo 8 caracteres"
               minLength={8}
               required
-              className="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2.5 pr-20 text-black dark:text-white outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-600"
+              className={`${inputClassName} pr-20`}
             />
             <button
               type="button"
               onClick={() => setShowPassword((prev) => !prev)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs rounded-md border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              className={
+                buttonClassName({ variant: "secondary", size: "sm" }) +
+                " absolute right-2 top-1/2 -translate-y-1/2"
+              }
             >
               {showPassword ? "Ocultar" : "Mostrar"}
             </button>
@@ -114,7 +124,7 @@ export default function ResetPasswordPage() {
         </div>
 
         <div>
-          <label className="block text-sm mb-1 text-slate-500 dark:text-slate-300">
+          <label className={`${labelClassName} mb-1`}>
             Confirmar contraseña
           </label>
           <div className="relative">
@@ -125,34 +135,43 @@ export default function ResetPasswordPage() {
               placeholder="Repite la contraseña"
               minLength={8}
               required
-              className="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2.5 pr-20 text-black dark:text-white outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-600"
+              className={`${inputClassName} pr-20`}
             />
             <button
               type="button"
               onClick={() => setShowConfirmPassword((prev) => !prev)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs rounded-md border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              className={
+                buttonClassName({ variant: "secondary", size: "sm" }) +
+                " absolute right-2 top-1/2 -translate-y-1/2"
+              }
             >
               {showConfirmPassword ? "Ocultar" : "Mostrar"}
             </button>
           </div>
         </div>
 
-        {error && <p className="text-sm text-red-500">{error}</p>}
-        {success && <p className="text-sm text-green-600">{success}</p>}
+        {error && (
+          <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300">
+            {error}
+          </p>
+        )}
+        {success && (
+          <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
+            {success}
+          </p>
+        )}
 
         <div className="pt-1 flex flex-col sm:flex-row gap-2 sm:items-center">
           <button
             type="submit"
             disabled={submitting || !hasResetParams}
-            className="px-4 py-2 rounded-lg bg-slate-900 text-white dark:bg-slate-200 dark:text-slate-900 hover:opacity-90 disabled:opacity-60 cursor-pointer"
+            className={buttonClassName({ variant: "primary" })}
+            aria-busy={submitting}
           >
             {submitting ? "Actualizando..." : "Guardar nueva contraseña"}
           </button>
 
-          <Link
-            to="/"
-            className="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
-          >
+          <Link to="/" className={buttonClassName({ variant: "secondary" })}>
             Volver al inicio
           </Link>
         </div>

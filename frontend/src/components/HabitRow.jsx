@@ -1,5 +1,6 @@
 import TableCell from "./TableCell";
 import { formatCompactDate, getIsoDayNameShort } from "../utils/dateLabels";
+import { isFutureIsoDate } from "../utils/dateUtils";
 
 export default function HabitRow({
   habit,
@@ -23,8 +24,8 @@ export default function HabitRow({
 
   return (
     <tr className="bg-white/70 dark:bg-slate-800/60 rounded-xl">
-      <td className="text-left px-2 sm:px-3 py-3 font-medium min-w-40 sm:min-w-52">
-        <span className="break-words">{habit.name}</span>
+      <td className="text-left px-2 sm:px-3 py-3 font-medium min-w-36 sm:min-w-48">
+        <span className="wrap-break-word">{habit.name}</span>
       </td>
 
       {dates.map((date) => (
@@ -32,6 +33,7 @@ export default function HabitRow({
           <TableCell
             status={habit.week[date]}
             onClick={() => onUpdate(habit.habit_id, date, habit.week[date])}
+            isFuture={isFutureIsoDate(date)}
           />
         </td>
       ))}
@@ -51,7 +53,7 @@ export default function HabitRow({
             <button
               onClick={() => onEdit(habit)}
               disabled={!canManageHabits}
-              className="w-full sm:w-auto px-2 sm:px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-xs sm:text-sm hover:bg-slate-100 dark:hover:bg-slate-700 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto px-2 sm:px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-xs sm:text-sm hover:bg-slate-100 dark:hover:bg-slate-700 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-600"
               title={
                 canManageHabits
                   ? "Editar"
@@ -64,7 +66,7 @@ export default function HabitRow({
             <button
               onClick={() => onDelete(habit)}
               disabled={!canManageHabits}
-              className="w-full sm:w-auto px-2 sm:px-3 py-1.5 rounded-lg border border-red-300 text-red-600 dark:border-red-700 dark:text-red-400 text-xs sm:text-sm hover:bg-red-50 dark:hover:bg-red-950/40 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto px-2 sm:px-3 py-1.5 rounded-lg border border-red-300 text-red-600 dark:border-red-700 dark:text-red-400 text-xs sm:text-sm hover:bg-red-50 dark:hover:bg-red-950/40 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-red-300 dark:focus:ring-red-600"
               title={
                 canManageHabits
                   ? "Eliminar"

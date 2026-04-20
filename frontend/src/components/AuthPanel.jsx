@@ -5,6 +5,14 @@ import {
   register,
   requestPasswordResetByEmail,
 } from "../api/auth";
+import {
+  buttonClassName,
+  helpTextClassName,
+  inputClassName,
+  labelClassName,
+  panelShellClassName,
+  segmentedButtonClassName,
+} from "./ui.js";
 
 const defaultLogin = {
   username: "",
@@ -139,7 +147,7 @@ export default function AuthPanel({ onAuthenticated }) {
   };
 
   return (
-    <div className="max-w-5xl mx-auto rounded-3xl border border-slate-200/80 dark:border-slate-700 bg-white/90 dark:bg-slate-900/80 shadow-sm overflow-hidden">
+    <div className={`${panelShellClassName} max-w-5xl mx-auto overflow-hidden`}>
       <div className="grid lg:grid-cols-2 lg:items-stretch">
         <div className="relative hidden lg:flex flex-col h-full min-h-140 p-8 bg-linear-to-br from-slate-900 to-slate-700 text-white">
           <div className="flex h-full flex-col justify-between">
@@ -161,11 +169,7 @@ export default function AuthPanel({ onAuthenticated }) {
                 setForgotError("");
                 setForgotMessage("");
               }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition cursor-pointer ${
-                mode === "login"
-                  ? "bg-slate-900 text-white dark:bg-slate-200 dark:text-slate-900"
-                  : "text-slate-600 dark:text-slate-300"
-              }`}
+              className={segmentedButtonClassName(mode === "login")}
             >
               Iniciar sesión
             </button>
@@ -179,11 +183,7 @@ export default function AuthPanel({ onAuthenticated }) {
                 setForgotError("");
                 setForgotMessage("");
               }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition cursor-pointer ${
-                mode === "register"
-                  ? "bg-slate-900 text-white dark:bg-slate-200 dark:text-slate-900"
-                  : "text-slate-600 dark:text-slate-300"
-              }`}
+              className={segmentedButtonClassName(mode === "register")}
             >
               Crear cuenta
             </button>
@@ -196,7 +196,7 @@ export default function AuthPanel({ onAuthenticated }) {
             <h3 className="text-2xl font-semibold tracking-tight mb-1">
               {mode === "login" ? "Bienvenido" : "Crea tu cuenta"}
             </h3>
-            <p className="text-sm text-slate-500 dark:text-slate-300 mb-6">
+            <p className={helpTextClassName + " mb-6"}>
               {mode === "login"
                 ? "Inicia sesión para continuar."
                 : "Empieza hoy."}
@@ -205,9 +205,7 @@ export default function AuthPanel({ onAuthenticated }) {
             {mode === "login" ? (
               <form onSubmit={onLogin} className="space-y-4">
                 <div>
-                  <label className="block text-sm mb-1 text-slate-500 dark:text-slate-300">
-                    Usuario
-                  </label>
+                  <label className={`${labelClassName} mb-1`}>Usuario</label>
                   <input
                     type="text"
                     placeholder="Ej. santi"
@@ -219,14 +217,12 @@ export default function AuthPanel({ onAuthenticated }) {
                         username: event.target.value,
                       }))
                     }
-                    className="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2.5 text-black dark:text-white outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-600"
+                    className={inputClassName}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm mb-1 text-slate-500 dark:text-slate-300">
-                    Contraseña
-                  </label>
+                  <label className={`${labelClassName} mb-1`}>Contraseña</label>
                   <div className="relative">
                     <input
                       type={showLoginPassword ? "text" : "password"}
@@ -239,12 +235,15 @@ export default function AuthPanel({ onAuthenticated }) {
                           password: event.target.value,
                         }))
                       }
-                      className="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2.5 pr-20 text-black dark:text-white outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-600"
+                      className={`${inputClassName} pr-20`}
                     />
                     <button
                       type="button"
                       onClick={() => setShowLoginPassword((prev) => !prev)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs rounded-md border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                      className={
+                        buttonClassName({ variant: "secondary", size: "sm" }) +
+                        " absolute right-2 top-1/2 -translate-y-1/2"
+                      }
                     >
                       {showLoginPassword ? "Ocultar" : "Mostrar"}
                     </button>
@@ -254,7 +253,11 @@ export default function AuthPanel({ onAuthenticated }) {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full px-4 py-2.5 rounded-xl bg-slate-900 text-white dark:bg-slate-200 dark:text-slate-900 hover:opacity-90 disabled:opacity-50 cursor-pointer font-medium"
+                  className={buttonClassName({
+                    variant: "primary",
+                    fullWidth: true,
+                  })}
+                  aria-busy={submitting}
                 >
                   {submitting ? "Iniciando sesión..." : "Iniciar sesión"}
                 </button>
@@ -267,7 +270,7 @@ export default function AuthPanel({ onAuthenticated }) {
                       setForgotError("");
                       setForgotMessage("");
                     }}
-                    className="text-sm text-slate-600 dark:text-slate-300 underline underline-offset-2 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+                    className="text-sm text-slate-600 dark:text-slate-300 underline underline-offset-2 hover:text-slate-900 dark:hover:text-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-600 rounded-md"
                   >
                     {showForgotPassword
                       ? "Ocultar recuperación"
@@ -276,7 +279,7 @@ export default function AuthPanel({ onAuthenticated }) {
 
                   {showForgotPassword && (
                     <div className="mt-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/50 p-3 space-y-3">
-                      <label className="block text-sm text-slate-600 dark:text-slate-300">
+                      <label className={labelClassName}>
                         Correo de tu cuenta
                       </label>
                       <input
@@ -285,13 +288,19 @@ export default function AuthPanel({ onAuthenticated }) {
                         value={forgotEmail}
                         onChange={(event) => setForgotEmail(event.target.value)}
                         placeholder="you@example.com"
-                        className="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2.5 text-black dark:text-white outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-600"
+                        className={inputClassName}
                       />
                       <button
                         type="button"
                         onClick={onForgotPassword}
                         disabled={forgotSubmitting}
-                        className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-60 cursor-pointer"
+                        className={
+                          buttonClassName({
+                            variant: "secondary",
+                            fullWidth: true,
+                          }) + " sm:w-auto"
+                        }
+                        aria-busy={forgotSubmitting}
                       >
                         {forgotSubmitting
                           ? "Enviando..."
@@ -302,7 +311,7 @@ export default function AuthPanel({ onAuthenticated }) {
                         <p className="text-sm text-red-500">{forgotError}</p>
                       )}
                       {forgotMessage && (
-                        <p className="text-sm text-green-600">
+                        <p className="text-sm text-emerald-600 dark:text-emerald-400">
                           {forgotMessage}
                         </p>
                       )}
@@ -313,9 +322,7 @@ export default function AuthPanel({ onAuthenticated }) {
             ) : (
               <form onSubmit={onRegister} className="space-y-4">
                 <div>
-                  <label className="block text-sm mb-1 text-slate-500 dark:text-slate-300">
-                    Usuario
-                  </label>
+                  <label className={`${labelClassName} mb-1`}>Usuario</label>
                   <input
                     type="text"
                     placeholder="Elige un usuario"
@@ -327,12 +334,12 @@ export default function AuthPanel({ onAuthenticated }) {
                         username: event.target.value,
                       }))
                     }
-                    className="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2.5 text-black dark:text-white outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-600"
+                    className={inputClassName}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm mb-1 text-slate-500 dark:text-slate-300">
+                  <label className={`${labelClassName} mb-1`}>
                     Correo electrónico
                   </label>
                   <input
@@ -346,14 +353,12 @@ export default function AuthPanel({ onAuthenticated }) {
                         email: event.target.value,
                       }))
                     }
-                    className="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2.5 text-black dark:text-white outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-600"
+                    className={inputClassName}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm mb-1 text-slate-500 dark:text-slate-300">
-                    Contraseña
-                  </label>
+                  <label className={`${labelClassName} mb-1`}>Contraseña</label>
                   <div className="relative">
                     <input
                       type={showRegisterPassword ? "text" : "password"}
@@ -367,12 +372,15 @@ export default function AuthPanel({ onAuthenticated }) {
                           password: event.target.value,
                         }))
                       }
-                      className="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2.5 pr-20 text-black dark:text-white outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-600"
+                      className={`${inputClassName} pr-20`}
                     />
                     <button
                       type="button"
                       onClick={() => setShowRegisterPassword((prev) => !prev)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs rounded-md border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                      className={
+                        buttonClassName({ variant: "secondary", size: "sm" }) +
+                        " absolute right-2 top-1/2 -translate-y-1/2"
+                      }
                     >
                       {showRegisterPassword ? "Ocultar" : "Mostrar"}
                     </button>
@@ -382,7 +390,11 @@ export default function AuthPanel({ onAuthenticated }) {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full px-4 py-2.5 rounded-xl bg-slate-900 text-white dark:bg-slate-200 dark:text-slate-900 hover:opacity-90 disabled:opacity-50 cursor-pointer font-medium"
+                  className={buttonClassName({
+                    variant: "primary",
+                    fullWidth: true,
+                  })}
+                  aria-busy={submitting}
                 >
                   {submitting ? "Creando cuenta..." : "Crear cuenta"}
                 </button>
@@ -390,7 +402,11 @@ export default function AuthPanel({ onAuthenticated }) {
             )}
           </div>
 
-          {error && <p className="text-sm text-red-500 mt-4">{error}</p>}
+          {error && (
+            <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300">
+              {error}
+            </p>
+          )}
         </div>
       </div>
     </div>

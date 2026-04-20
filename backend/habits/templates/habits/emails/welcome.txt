@@ -1,0 +1,7 @@
+Hola {{ display_name }},
+
+Tu cuenta quedó lista en VOLICION.
+Desde ahora puedes registrar hábitos, revisar tu progreso y mantener tu ritmo día a día.
+
+Abre {{ frontend_url }} para empezar.
+Si este registro no corresponde a ti, puedes ignorar este correo.

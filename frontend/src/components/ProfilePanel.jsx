@@ -7,6 +7,15 @@ import {
 } from "../api/auth";
 import defaultAvatar from "../assets/default-avatar.svg";
 import LoadingSpinner from "./LoadingSpinner";
+import {
+  buttonClassName,
+  helpTextClassName,
+  inputClassName,
+  labelClassName,
+  modalBackdropClassName,
+  modalPanelClassName,
+  panelShellClassName,
+} from "./ui.js";
 
 const GENDER_OPTIONS = [
   { value: "male", label: "Masculino" },
@@ -191,14 +200,14 @@ export default function ProfilePanel({ onProfileChange }) {
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-slate-200/80 bg-white/90 dark:bg-slate-900/80 dark:border-slate-700 p-6 shadow-sm">
+      <div className={`${panelShellClassName} p-6`}>
         <LoadingSpinner label="Cargando perfil..." />
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white/90 dark:bg-slate-900/80 dark:border-slate-700 p-3 sm:p-4 md:p-6 shadow-sm">
+    <div className={`${panelShellClassName} p-3 sm:p-4 md:p-6`}>
       <div className="mb-5 rounded-2xl border border-slate-200/80 dark:border-slate-700 bg-linear-to-r from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 p-3 sm:p-4">
         <p className="text-xs uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
           Perfil
@@ -215,9 +224,7 @@ export default function ProfilePanel({ onProfileChange }) {
           />
 
           <div className="flex-1 w-full min-w-0">
-            <p className="text-sm text-slate-500 dark:text-slate-300">
-              JPG, PNG o WEBP. Máximo 2 MB.
-            </p>
+            <p className={helpTextClassName}>JPG, PNG o WEBP. Máximo 2 MB.</p>
 
             <div className="mt-3 flex flex-wrap items-center gap-2 sm:gap-3">
               <button
@@ -226,7 +233,10 @@ export default function ProfilePanel({ onProfileChange }) {
                   setPendingPhoto(null);
                   setShowPhotoModal(true);
                 }}
-                className="w-full sm:w-auto px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
+                className={
+                  buttonClassName({ variant: "secondary", size: "sm" }) +
+                  " w-full sm:w-auto"
+                }
               >
                 Cambiar foto
               </button>
@@ -242,7 +252,10 @@ export default function ProfilePanel({ onProfileChange }) {
                     }
                     setAvatarPreview(persistedAvatarPreview);
                   }}
-                  className="w-full sm:w-auto px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
+                  className={
+                    buttonClassName({ variant: "secondary", size: "sm" }) +
+                    " w-full sm:w-auto"
+                  }
                 >
                   Quitar foto
                 </button>
@@ -257,7 +270,10 @@ export default function ProfilePanel({ onProfileChange }) {
                     setHasCustomAvatar(false);
                     setAvatarPreview("");
                   }}
-                  className="w-full sm:w-auto px-3 py-2 rounded-lg border border-red-300 text-red-600 dark:border-red-700 dark:text-red-400 text-sm hover:bg-red-50 dark:hover:bg-red-950/30 cursor-pointer disabled:opacity-50"
+                  className={
+                    buttonClassName({ variant: "danger", size: "sm" }) +
+                    " w-full sm:w-auto"
+                  }
                 >
                   Eliminar foto actual
                 </button>
@@ -271,7 +287,10 @@ export default function ProfilePanel({ onProfileChange }) {
                     setHasCustomAvatar(Boolean(persistedAvatarPreview));
                     setAvatarPreview(persistedAvatarPreview);
                   }}
-                  className="w-full sm:w-auto px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
+                  className={
+                    buttonClassName({ variant: "secondary", size: "sm" }) +
+                    " w-full sm:w-auto"
+                  }
                 >
                   Deshacer
                 </button>
@@ -282,35 +301,31 @@ export default function ProfilePanel({ onProfileChange }) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm mb-1 text-slate-500 dark:text-slate-300">
-              Nombre
-            </label>
+            <label className={`${labelClassName} mb-1`}>Nombre</label>
             <input
               type="text"
               value={form.first_name}
               onChange={(event) =>
                 setForm((prev) => ({ ...prev, first_name: event.target.value }))
               }
-              className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 p-2"
+              className={inputClassName}
             />
           </div>
 
           <div>
-            <label className="block text-sm mb-1 text-slate-500 dark:text-slate-300">
-              Apellido
-            </label>
+            <label className={`${labelClassName} mb-1`}>Apellido</label>
             <input
               type="text"
               value={form.last_name}
               onChange={(event) =>
                 setForm((prev) => ({ ...prev, last_name: event.target.value }))
               }
-              className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 p-2"
+              className={inputClassName}
             />
           </div>
 
           <div>
-            <label className="block text-sm mb-1 text-slate-500 dark:text-slate-300">
+            <label className={`${labelClassName} mb-1`}>
               Correo electrónico
             </label>
             <input
@@ -319,12 +334,12 @@ export default function ProfilePanel({ onProfileChange }) {
               onChange={(event) =>
                 setForm((prev) => ({ ...prev, email: event.target.value }))
               }
-              className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 p-2"
+              className={inputClassName}
             />
           </div>
 
           <div>
-            <label className="block text-sm mb-1 text-slate-500 dark:text-slate-300">
+            <label className={`${labelClassName} mb-1`}>
               Fecha de nacimiento
             </label>
             <input
@@ -333,14 +348,12 @@ export default function ProfilePanel({ onProfileChange }) {
               onChange={(event) =>
                 setForm((prev) => ({ ...prev, birth_date: event.target.value }))
               }
-              className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 p-2"
+              className={inputClassName}
             />
           </div>
 
           <div>
-            <label className="block text-sm mb-1 text-slate-500 dark:text-slate-300">
-              Peso (kg)
-            </label>
+            <label className={`${labelClassName} mb-1`}>Peso (kg)</label>
             <input
               type="number"
               min="0"
@@ -349,20 +362,18 @@ export default function ProfilePanel({ onProfileChange }) {
               onChange={(event) =>
                 setForm((prev) => ({ ...prev, weight_kg: event.target.value }))
               }
-              className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 p-2"
+              className={inputClassName}
             />
           </div>
 
           <div>
-            <label className="block text-sm mb-1 text-slate-500 dark:text-slate-300">
-              Género
-            </label>
+            <label className={`${labelClassName} mb-1`}>Género</label>
             <select
               value={form.gender}
               onChange={(event) =>
                 setForm((prev) => ({ ...prev, gender: event.target.value }))
               }
-              className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 p-2"
+              className={inputClassName}
             >
               {GENDER_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -373,10 +384,20 @@ export default function ProfilePanel({ onProfileChange }) {
           </div>
         </div>
 
-        {error && <p className="text-sm text-red-500">{error}</p>}
-        {success && <p className="text-sm text-green-600">{success}</p>}
+        {error && (
+          <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300">
+            {error}
+          </p>
+        )}
+        {success && (
+          <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
+            {success}
+          </p>
+        )}
         {passwordResetMessage && (
-          <p className="text-sm text-green-600">{passwordResetMessage}</p>
+          <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
+            {passwordResetMessage}
+          </p>
         )}
 
         <div className="pt-2">
@@ -384,7 +405,8 @@ export default function ProfilePanel({ onProfileChange }) {
             <button
               type="submit"
               disabled={saving}
-              className="px-4 py-2 rounded-lg bg-slate-900 text-white dark:bg-slate-200 dark:text-slate-900 hover:opacity-90 disabled:opacity-60 cursor-pointer"
+              className={buttonClassName({ variant: "primary" })}
+              aria-busy={saving}
             >
               {saving ? "Guardando..." : "Guardar perfil"}
             </button>
@@ -392,7 +414,8 @@ export default function ProfilePanel({ onProfileChange }) {
               type="button"
               disabled={sendingResetEmail}
               onClick={handlePasswordResetRequest}
-              className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-60 cursor-pointer"
+              className={buttonClassName({ variant: "secondary" })}
+              aria-busy={sendingResetEmail}
             >
               {sendingResetEmail
                 ? "Enviando correo..."
@@ -403,8 +426,8 @@ export default function ProfilePanel({ onProfileChange }) {
       </form>
 
       {showSaveConfirm && (
-        <div className="fixed inset-0 bg-slate-900/45 backdrop-blur-sm flex items-center justify-center z-50 px-3">
-          <div className="w-full max-w-sm rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-xl">
+        <div className={modalBackdropClassName}>
+          <div className={`${modalPanelClassName} max-w-sm p-5`}>
             <h3 className="text-lg font-semibold">Confirmar cambios</h3>
             <p className="text-sm text-slate-500 dark:text-slate-300 mt-2">
               ¿Guardar cambios?
@@ -413,7 +436,10 @@ export default function ProfilePanel({ onProfileChange }) {
               <button
                 type="button"
                 onClick={() => setShowSaveConfirm(false)}
-                className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                className={buttonClassName({
+                  variant: "secondary",
+                  size: "sm",
+                })}
               >
                 Cancelar
               </button>
@@ -424,7 +450,8 @@ export default function ProfilePanel({ onProfileChange }) {
                   setShowSaveConfirm(false);
                   await saveProfile();
                 }}
-                className="px-3 py-2 rounded-lg bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 hover:opacity-90 disabled:opacity-60 cursor-pointer"
+                className={buttonClassName({ variant: "primary", size: "sm" })}
+                aria-busy={saving}
               >
                 {saving ? "Guardando..." : "Sí, guardar"}
               </button>
@@ -434,8 +461,8 @@ export default function ProfilePanel({ onProfileChange }) {
       )}
 
       {showPhotoModal && (
-        <div className="fixed inset-0 bg-slate-900/45 backdrop-blur-sm flex items-center justify-center z-50 px-3">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-6 shadow-xl">
+        <div className={modalBackdropClassName}>
+          <div className={`${modalPanelClassName} max-w-md p-5 sm:p-6`}>
             <h3 className="text-lg font-semibold">Subir foto</h3>
             <p className="text-sm text-slate-500 dark:text-slate-300 mt-2">
               Elige una imagen JPG, PNG o WEBP. Máximo 2 MB.
@@ -455,7 +482,7 @@ export default function ProfilePanel({ onProfileChange }) {
             />
 
             <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 p-3">
-              <p className="text-sm text-slate-600 dark:text-slate-300">
+              <p className={helpTextClassName}>
                 {pendingPhoto ? pendingPhoto.name : "Aún no elegiste archivo."}
               </p>
             </div>
@@ -464,7 +491,10 @@ export default function ProfilePanel({ onProfileChange }) {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                className={buttonClassName({
+                  variant: "secondary",
+                  size: "sm",
+                })}
               >
                 Elegir archivo
               </button>
@@ -477,7 +507,10 @@ export default function ProfilePanel({ onProfileChange }) {
                   setPendingPhoto(null);
                   setShowPhotoModal(false);
                 }}
-                className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                className={buttonClassName({
+                  variant: "secondary",
+                  size: "sm",
+                })}
               >
                 Cancelar
               </button>
@@ -512,7 +545,7 @@ export default function ProfilePanel({ onProfileChange }) {
                   setPendingPhoto(null);
                   setShowPhotoModal(false);
                 }}
-                className="px-3 py-2 rounded-lg bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 hover:opacity-90 cursor-pointer"
+                className={buttonClassName({ variant: "primary", size: "sm" })}
               >
                 Usar foto
               </button>

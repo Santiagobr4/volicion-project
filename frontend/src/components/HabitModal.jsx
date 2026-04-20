@@ -1,5 +1,11 @@
 import { useMemo, useRef, useState } from "react";
 import { capitalizeDayCode } from "../utils/dateLabels";
+import {
+  buttonClassName,
+  inputClassName,
+  modalBackdropClassName,
+  modalPanelClassName,
+} from "./ui.js";
 
 const WEEK_DAYS = [
   "monday",
@@ -92,8 +98,8 @@ export default function HabitModal({ open, onClose, onSubmit, initialData }) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 px-3">
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-6 shadow-xl">
+    <div className={modalBackdropClassName}>
+      <div className={`${modalPanelClassName} max-w-md p-5 sm:p-6`}>
         <h2 className="text-xl font-semibold mb-1">
           {initialData ? "Editar hábito" : "Crear hábito"}
         </h2>
@@ -110,7 +116,7 @@ export default function HabitModal({ open, onClose, onSubmit, initialData }) {
         <input
           type="text"
           placeholder="Nombre del hábito"
-          className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg mb-1 text-black dark:text-white dark:bg-slate-800 disabled:opacity-70 disabled:cursor-not-allowed"
+          className={`${inputClassName} mb-1`}
           value={habit.name}
           disabled={!!initialData}
           onChange={(e) =>
@@ -131,11 +137,10 @@ export default function HabitModal({ open, onClose, onSubmit, initialData }) {
           <button
             type="button"
             onClick={toggleAllDays}
-            className={`cursor-pointer p-2.5 rounded-lg w-full transition ${
-              allDaysSelected
-                ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
-                : "bg-slate-100 dark:bg-slate-800"
-            }`}
+            className={buttonClassName({
+              variant: allDaysSelected ? "primary" : "secondary",
+              fullWidth: true,
+            })}
           >
             Todos los días
           </button>
@@ -147,11 +152,11 @@ export default function HabitModal({ open, onClose, onSubmit, initialData }) {
               type="button"
               key={day}
               onClick={() => toggleDay(day)}
-              className={`cursor-pointer p-2 rounded-lg transition ${
-                habit.days.includes(day)
-                  ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
-                  : "bg-slate-100 dark:bg-slate-800"
-              }`}
+              className={buttonClassName({
+                variant: habit.days.includes(day) ? "primary" : "secondary",
+                size: "sm",
+                fullWidth: true,
+              })}
             >
               {capitalizeDayCode(day)}
             </button>
@@ -162,15 +167,17 @@ export default function HabitModal({ open, onClose, onSubmit, initialData }) {
 
         <div className="flex justify-end gap-2">
           <button
+            type="button"
             onClick={onClose}
-            className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+            className={buttonClassName({ variant: "secondary", size: "sm" })}
           >
             Cancelar
           </button>
 
           <button
+            type="button"
             onClick={handleSubmit}
-            className="px-3 py-2 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 rounded-lg hover:opacity-90 cursor-pointer"
+            className={buttonClassName({ variant: "primary", size: "sm" })}
           >
             {initialData ? "Guardar cambios" : "Crear"}
           </button>

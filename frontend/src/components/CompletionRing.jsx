@@ -2,13 +2,15 @@ import { formatPercent, getCompletionColor } from "../utils/completion";
 import CardHeader from "./CardHeader";
 
 export default function CompletionRing({ value, title, subtitle }) {
-  const safeValue = value === null || value === undefined ? 0 : value;
+  const hasValue = value !== null && value !== undefined;
+  const safeValue = hasValue ? value : 0;
   const clamped = Math.max(0, Math.min(100, safeValue));
   const radius = 42;
   const strokeWidth = 12;
   const normalizedRadius = radius - strokeWidth / 2;
   const circumference = 2 * Math.PI * normalizedRadius;
   const dashOffset = circumference - (clamped / 100) * circumference;
+  const strokeColor = hasValue ? getCompletionColor(value) : "#cbd5e1";
 
   return (
     <div className="h-full rounded-xl border border-slate-200 dark:border-slate-700 p-4 bg-white dark:bg-slate-800/70 flex flex-col">
@@ -34,7 +36,7 @@ export default function CompletionRing({ value, title, subtitle }) {
               cy="50"
               r={normalizedRadius}
               fill="transparent"
-              stroke={getCompletionColor(value)}
+              stroke={strokeColor}
               strokeWidth={strokeWidth}
               strokeLinecap="round"
               strokeDasharray={circumference}
@@ -45,7 +47,7 @@ export default function CompletionRing({ value, title, subtitle }) {
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
             <p className="text-2xl font-semibold leading-none text-slate-700 dark:text-slate-100">
-              {formatPercent(value)}
+              {hasValue ? formatPercent(value) : "—"}
             </p>
           </div>
         </div>

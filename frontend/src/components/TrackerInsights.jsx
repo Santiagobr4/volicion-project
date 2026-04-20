@@ -48,12 +48,28 @@ const getTrendDirection = (values) => {
   return "flat";
 };
 
-const buildInsights = ({ daily, focus, week }) => {
+const buildInsights = ({
+  daily,
+  focus,
+  week,
+  weekPhase,
+  evaluatedDays,
+  totalDays,
+  isFirstWeek,
+}) => {
   const validDaily = daily.filter(
     (row) => row && row.completion !== null && row.completion !== undefined,
   );
   const values = validDaily.map((row) => row.completion);
   const observedDays = values.length;
+  const elapsedDays = Math.max(evaluatedDays ?? 0, observedDays);
+  const cappedTotalDays = Math.max(totalDays ?? 7, elapsedDays, 1);
+  const hasNoHabitsConfigured =
+    (focus?.total ?? 0) === 0 && (week?.total ?? 0) === 0;
+  const isFutureWeek = weekPhase === "future";
+  const isStartPhase = weekPhase === "start";
+  const isMidPhase = weekPhase === "mid";
+  const isLatePhase = weekPhase === "late" || weekPhase === "complete";
   const weakDays = validDaily.filter((row) => row.completion < 50);
   const weakRatio = weakDays.length / Math.max(observedDays, 1);
   const trend = getTrendDirection(values);
@@ -77,76 +93,150 @@ const buildInsights = ({ daily, focus, week }) => {
 
   const cards = [];
 
+  if (hasNoHabitsConfigured) {
+    return [
+      {
+        tone: "info",
+        title: "Tu panel está listo para arrancar",
+        text: "Aún no tienes hábitos activos en esta semana. Crea uno pequeño para comenzar a generar métricas útiles.",
+      },
+    ];
+  }
+
+  if (isFutureWeek) {
+    return [
+      {
+        tone: "info",
+        title: "Semana aún no iniciada",
+        text: "Cuando llegue esta semana, verás progreso real día por día. Por ahora no hacemos proyecciones.",
+      },
+    ];
+  }
+
+  if (observedDays === 0) {
+    if (isFirstWeek && evaluatedDays <= 1) {
+      return [
+        {
+          tone: "info",
+          title: "Primer día: construye inercia",
+          text: "Tu objetivo hoy no es la perfección, es arrancar. Completa una versión mínima y mañana será más fácil.",
+        },
+      ];
+    }
+
+    return [
+      {
+        tone: "warning",
+        title: "Semana sin registros todavía",
+        text: `Ya transcurrieron ${elapsedDays} de ${cappedTotalDays} días, pero aún no registras actividad. Arranca con un hábito sencillo hoy para activar tus insights.`,
+      },
+    ];
+  }
+
   if (focus?.completion !== null && focus?.completion !== undefined) {
     if (focus.completion >= 80) {
       cards.push({
         tone: "success",
-        title: "Buen cierre de hoy",
-        text: "Vas bien. Mantén este ritmo.",
+        title: "Hoy vas sólido",
+        text: "Se nota consistencia. Mantén este mismo umbral para cerrar la semana fuerte.",
       });
     } else if (focus.completion >= 50) {
       cards.push({
         tone: "warning",
-        title: "Hoy tienes margen para mejorar",
-        text: "Estás cerca. Completar un hábito más hoy puede ayudar.",
+        title: "Hoy estás cerca",
+        text: "Con un hábito más terminado, el día cambia de nivel y mejora tu promedio semanal.",
       });
     } else {
       cards.push({
         tone: "critical",
-        title: "Hoy toca recuperar",
-        text: "Empieza por tu versión mínima.",
+        title: "Hoy toca destrabar",
+        text: "No busques hacerlo perfecto: cumple una versión mínima ahora y recupera tracción.",
       });
     }
   }
 
+  if (elapsedDays > 0) {
+    if (isStartPhase) {
+      cards.push({
+        tone: "info",
+        title: "Inicio de semana",
+        text: `Llevas ${elapsedDays} de ${cappedTotalDays} días transcurridos. Prioriza continuidad: dos días seguidos valen más que un día perfecto aislado.`,
+      });
+    } else if (isMidPhase) {
+      cards.push({
+        tone: "info",
+        title: "Mitad de semana",
+        text: `Ya tienes ${elapsedDays} de ${cappedTotalDays} días transcurridos. Este es el mejor momento para ajustar carga y proteger tus hábitos clave.`,
+      });
+    } else if (isLatePhase) {
+      cards.push({
+        tone: "info",
+        title: "Cierre en construcción",
+        text: `Has recorrido ${elapsedDays} de ${cappedTotalDays} días. Tu patrón ya es claro: enfócate en cerrar fuerte, no en compensar todo de golpe.`,
+      });
+    }
+  } else {
+    cards.push({
+      tone: "info",
+      title: "Aún no hay días evaluados",
+      text: "A medida que avance la semana, aquí aparecerán métricas más precisas.",
+    });
+  }
+
   if (week?.completion !== null && week?.completion !== undefined) {
-    if (week.completion >= 80) {
+    if (isStartPhase) {
+      cards.push({
+        tone: "info",
+        title: "Lectura temprana",
+        text: "El porcentaje aún fluctúa mucho. Quédate con la dirección, no con el número exacto.",
+      });
+    } else if (week.completion >= 80) {
       cards.push({
         tone: "success",
-        title: "Semana sólida",
-        text: "Tu constancia fue buena. Mantén una rutina simple.",
+        title: "Semana muy sólida",
+        text: "Tu sistema está funcionando. Conserva la estructura actual y evita cambios bruscos.",
       });
     } else if (week.completion >= 60) {
       cards.push({
         tone: "info",
-        title: "Buena base semanal",
-        text: "Tienes una base buena. Un día mejor puede mover el promedio.",
+        title: "Base semanal estable",
+        text: "Vas en buen camino. Un cierre consistente puede llevarte al siguiente nivel.",
       });
     } else {
       cards.push({
         tone: "warning",
-        title: "Semana por recuperar",
-        text: "Aún puedes recuperarla. Enfócate en un hábito clave.",
+        title: "Semana en recuperación",
+        text: "Elige un hábito ancla y protégelo hasta el cierre; eso suele levantar todo el tablero.",
       });
     }
   }
 
-  if (trend === "up") {
+  if (!isStartPhase && observedDays >= 3 && trend === "up") {
     cards.push({
       tone: "info",
-      title: "La tendencia mejora",
-      text: "Vas en ascenso. Repite lo que funcionó.",
+      title: "Tendencia positiva",
+      text: "Vas de menos a más. Repite el contexto de tus mejores días para consolidarlo.",
     });
-  } else if (trend === "down") {
+  } else if (!isStartPhase && observedDays >= 3 && trend === "down") {
     cards.push({
       tone: "warning",
-      title: "La tendencia baja",
-      text: "Simplifica el hábito más difícil y retoma constancia.",
+      title: "Tendencia en descenso",
+      text: "Reduce fricción hoy: simplifica el hábito más pesado y vuelve a encadenar días cumplidos.",
     });
   }
 
-  if (weakDays.length > 0) {
+  if (!isStartPhase && observedDays >= 3 && weakDays.length > 0) {
     cards.push({
       tone: weakRatio >= 0.35 ? "critical" : "warning",
       title: `${weakDays.length} día${weakDays.length === 1 ? "" : "s"} con baja adherencia`,
       text:
         weakRatio >= 0.35
-          ? "Los días flojos están bajando tu semana. Crea una versión ligera de respaldo."
-          : "Tu siguiente mejora está en los días flojos. Define una versión de respaldo.",
+          ? "Los días flojos ya impactan tu semana. Define una versión de emergencia para no cortar la cadena."
+          : "Tu siguiente salto está en estabilizar los días flojos con una meta mínima clara.",
     });
   }
 
-  if (bestDay) {
+  if (!isStartPhase && observedDays >= 3 && bestDay) {
     if (hasMultiplePerfectDays) {
       const formattedPerfectDates = perfectDays.map((row) =>
         formatInsightDate(row.date),
@@ -175,8 +265,8 @@ const buildInsights = ({ daily, focus, week }) => {
   if (cards.length === 0) {
     cards.push({
       tone: "info",
-      title: "Aún falta información",
-      text: "Sigue cumpliendo esta semana. Con un poco más de datos tendrás recomendaciones más precisas.",
+      title: "Señales en construcción",
+      text: "Mantén la constancia unos días más y aparecerán recomendaciones más precisas y accionables.",
     });
   }
 
@@ -196,24 +286,78 @@ export default function TrackerInsights({ metrics }) {
   const safeDaily = daily.filter((row) => row && row.date);
   const focus = metrics?.focus;
   const week = metrics?.week;
+  const isFirstWeek =
+    metrics?.baseline_date &&
+    week?.start_date &&
+    metrics.baseline_date === week.start_date;
   const isCurrentWeek = metrics?.is_current_week;
-  const insights = buildInsights({ daily: safeDaily, focus, week });
-  const focusLabel = isCurrentWeek
-    ? "Cumplimiento de hoy"
-    : `Cumplimiento del ${metrics?.focus_date}`;
-  const weekLabel = isCurrentWeek
-    ? "Cumplimiento de la semana actual"
-    : "Cumplimiento de la semana seleccionada";
+  const weekPhase =
+    metrics?.week_phase || (safeDaily.length === 0 ? "future" : "mid");
+  const evaluatedDays = Math.max(
+    metrics?.evaluated_days ?? 0,
+    safeDaily.length,
+  );
+  const totalDays = Math.max(metrics?.total_days ?? 7, evaluatedDays, 1);
+  const insights = buildInsights({
+    daily: safeDaily,
+    focus,
+    week,
+    weekPhase,
+    evaluatedDays,
+    totalDays,
+    isFirstWeek,
+  });
+  const hasNoHabitsConfigured =
+    (focus?.total ?? 0) === 0 && (week?.total ?? 0) === 0;
+  const focusLabel = hasNoHabitsConfigured
+    ? "Sin hábitos activos"
+    : weekPhase === "future"
+      ? "Sin datos evaluados"
+      : isCurrentWeek
+        ? "Cumplimiento de hoy"
+        : `Cumplimiento del ${metrics?.focus_date}`;
+  const weekLabel = hasNoHabitsConfigured
+    ? "Panel sin actividad"
+    : weekPhase === "future"
+      ? "Semana futura"
+      : isCurrentWeek
+        ? "Semana en curso"
+        : "Cierre de semana";
+  const progressSubtitle = hasNoHabitsConfigured
+    ? "Activa hábitos para ver métricas"
+    : weekPhase === "future"
+      ? "Semana aún no inicia"
+      : `Semana en día ${Math.min(evaluatedDays, totalDays)} de ${totalDays}`;
+  const hasPartialDataContext =
+    !hasNoHabitsConfigured &&
+    weekPhase !== "future" &&
+    weekPhase !== "complete" &&
+    evaluatedDays > 0 &&
+    evaluatedDays < totalDays;
   const showTrendInline = safeDaily.length > 0 && safeDaily.length <= 7;
 
   return (
     <div className="mt-7 rounded-2xl border border-slate-200/80 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-900/70 p-5">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
         <h3 className="text-lg font-semibold">Rendimiento actual</h3>
-        <p className="text-sm text-slate-500 dark:text-slate-300">
-          Línea base desde {metrics?.baseline_date}
-        </p>
+        <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500 dark:text-slate-300">
+          <span className="rounded-full border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/70 px-3 py-1">
+            {progressSubtitle}
+          </span>
+          <span className="hidden sm:inline">
+            Línea base desde {metrics?.baseline_date}
+          </span>
+        </div>
       </div>
+
+      {hasPartialDataContext && (
+        <div className="mb-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/75 dark:bg-slate-800/50 px-4 py-3">
+          <p className="text-sm text-slate-700 dark:text-slate-200">
+            Aún es pronto en la semana. Estas lecturas llegan hasta el día{" "}
+            {Math.min(evaluatedDays, totalDays)} de {totalDays}.
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
         {insights.map((insight) => (
@@ -239,7 +383,11 @@ export default function TrackerInsights({ metrics }) {
         <CompletionRing
           value={week?.completion}
           title={weekLabel}
-          subtitle={formatReadableDateRange(week?.start_date, week?.end_date)}
+          subtitle={
+            weekPhase === "future"
+              ? "Esta semana todavía no inicia"
+              : `${formatReadableDateRange(week?.start_date, week?.end_date)} · ${progressSubtitle}`
+          }
         />
 
         {showTrendInline && (

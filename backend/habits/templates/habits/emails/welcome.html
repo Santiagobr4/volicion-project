@@ -1,0 +1,13 @@
+{% extends "habits/emails/base_email.html" %} {% block title %}Bienvenido a
+VOLICION{% endblock %} {% block content %}
+<p style="margin: 0 0 16px">Hola {{ display_name }},</p>
+<p style="margin: 0 0 16px">
+  Tu cuenta quedó lista. Desde ahora puedes registrar hábitos, revisar tu
+  progreso y mantener tu ritmo día a día.
+</p>
+<p style="margin: 0">
+  Empieza por tu primera semana y vuelve cuando quieras para ajustar tu rutina.
+</p>
+{% endblock %} {% block footer %} Si quieres volver al inicio, abre {{
+frontend_url }}.<br />
+Si este registro no corresponde a ti, puedes ignorar este correo. {% endblock %}

@@ -12,13 +12,20 @@ import SectionTabs from "./components/SectionTabs";
 import WeeklyTable from "./components/WeeklyTable";
 import defaultAvatar from "./assets/default-avatar.svg";
 import { clearHabitOrder } from "./utils/habitOrderStorage";
+import {
+  buttonClassName,
+  panelShellClassName,
+  segmentedButtonClassName,
+} from "./components/ui.js";
 
 const HistoryPanel = lazy(() => import("./components/HistoryPanel"));
 const RankingPanel = lazy(() => import("./components/RankingPanel"));
 const ProfilePanel = lazy(() => import("./components/ProfilePanel"));
 
 function App() {
-  const [theme, setTheme] = useState(localStorage.getItem("theme") || "system");
+  const [theme, setTheme] = useState(
+    () => localStorage.getItem("theme") || "system",
+  );
   const [isAuthenticated, setIsAuthenticated] = useState(
     !!getStoredAccessToken(),
   );
@@ -30,6 +37,7 @@ function App() {
 
   useEffect(() => {
     const root = document.documentElement;
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
     document.title = "VOLICION | Hábitos, disciplina y progreso";
 
@@ -38,7 +46,7 @@ function App() {
     } else if (theme === "light") {
       root.classList.remove("dark");
     } else {
-      const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      const isDark = mediaQuery.matches;
       root.classList.toggle("dark", isDark);
     }
 
@@ -47,6 +55,22 @@ function App() {
     } else {
       localStorage.setItem("theme", theme);
     }
+
+    if (theme !== "system") {
+      return undefined;
+    }
+
+    const handleChange = (event) => {
+      root.classList.toggle("dark", event.matches);
+    };
+
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", handleChange);
+      return () => mediaQuery.removeEventListener("change", handleChange);
+    }
+
+    mediaQuery.addListener(handleChange);
+    return () => mediaQuery.removeListener(handleChange);
   }, [theme]);
 
   useEffect(() => {
@@ -108,11 +132,7 @@ function App() {
 
   const themeButtonClass = (mode) => {
     const isSelected = theme === mode;
-    return `px-3 py-2 rounded-xl cursor-pointer border transition ${
-      isSelected
-        ? "bg-slate-900 text-white border-slate-900 dark:bg-slate-200 dark:text-slate-900 dark:border-slate-200"
-        : "bg-slate-100 dark:bg-slate-800 border-transparent"
-    }`;
+    return segmentedButtonClassName(isSelected);
   };
 
   const fullName = [profile?.first_name?.trim(), profile?.last_name?.trim()]
@@ -163,7 +183,7 @@ function App() {
   return (
     <div className="overflow-x-clip text-black dark:text-white transition">
       <div className="max-w-6xl mx-auto space-y-6">
-        <div className="rounded-3xl border border-slate-200/80 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur p-4 sm:p-5 shadow-sm">
+        <div className={`${panelShellClassName} backdrop-blur p-4 sm:p-5`}>
           <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
             <div>
               <h1 className="text-3xl font-semibold tracking-tight">
@@ -176,25 +196,31 @@ function App() {
 
             <div className="flex flex-wrap gap-2">
               <button
+                type="button"
                 onClick={() => setTheme("light")}
                 className={themeButtonClass("light")}
                 aria-label="Tema claro"
+                aria-pressed={theme === "light"}
               >
                 Claro
               </button>
 
               <button
+                type="button"
                 onClick={() => setTheme("dark")}
                 className={themeButtonClass("dark")}
                 aria-label="Tema oscuro"
+                aria-pressed={theme === "dark"}
               >
                 Oscuro
               </button>
 
               <button
+                type="button"
                 onClick={() => setTheme("system")}
                 className={themeButtonClass("system")}
                 aria-label="Tema del sistema"
+                aria-pressed={theme === "system"}
               >
                 Sistema
               </button>
@@ -202,11 +228,17 @@ function App() {
           </div>
         </div>
 
-        {profileError && <p className="mb-4 text-red-500">{profileError}</p>}
+        {profileError && (
+          <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-600 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300">
+            {profileError}
+          </p>
+        )}
 
         {isAuthenticated ? (
           <>
-            <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-slate-200/80 dark:border-slate-700 bg-white/90 dark:bg-slate-900/80 p-3 sm:p-4 shadow-sm">
+            <div
+              className={`${panelShellClassName} mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4`}
+            >
               <div className="flex items-center gap-3 min-w-0">
                 <img
                   src={avatarSrc}
@@ -227,8 +259,12 @@ function App() {
                   {todayLabel}
                 </p>
                 <button
+                  type="button"
                   onClick={() => setShowLogoutConfirm(true)}
-                  className="w-full sm:w-auto px-3 py-2 rounded-xl bg-red-500 text-white hover:bg-red-600 cursor-pointer"
+                  className={
+                    buttonClassName({ variant: "danger", fullWidth: true }) +
+                    " sm:w-auto"
+                  }
                 >
                   Cerrar sesión
                 </button>
@@ -242,8 +278,8 @@ function App() {
             </div>
 
             {showLogoutConfirm && (
-              <div className="fixed inset-0 bg-slate-900/45 backdrop-blur-sm flex items-center justify-center z-50 px-3">
-                <div className="w-full max-w-sm rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-xl">
+              <div className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-sm flex items-center justify-center px-3 py-4">
+                <div className="w-full max-w-sm max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-xl">
                   <h3 className="text-lg font-semibold">
                     Confirmar cierre de sesión
                   </h3>
@@ -254,7 +290,10 @@ function App() {
                     <button
                       type="button"
                       onClick={() => setShowLogoutConfirm(false)}
-                      className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                      className={buttonClassName({
+                        variant: "secondary",
+                        size: "sm",
+                      })}
                     >
                       Cancelar
                     </button>
@@ -263,7 +302,10 @@ function App() {
                       onClick={() => {
                         handleLogout();
                       }}
-                      className="px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 cursor-pointer"
+                      className={buttonClassName({
+                        variant: "danger",
+                        size: "sm",
+                      })}
                     >
                       Sí, cerrar sesión
                     </button>

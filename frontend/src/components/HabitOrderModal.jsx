@@ -1,3 +1,9 @@
+import {
+  buttonClassName,
+  modalBackdropClassName,
+  modalPanelClassName,
+} from "./ui.js";
+
 export default function HabitOrderModal({
   open,
   habits,
@@ -9,8 +15,8 @@ export default function HabitOrderModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/45 backdrop-blur-sm flex items-center justify-center z-50 px-3">
-      <div className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-xl">
+    <div className={modalBackdropClassName}>
+      <div className={`${modalPanelClassName} max-w-lg p-5`}>
         <h3 className="text-lg font-semibold">Ordenar hábitos</h3>
         <p className="text-sm text-slate-500 dark:text-slate-300 mt-1 mb-4">
           Reordena tus hábitos activos y guarda los cambios.
@@ -58,14 +64,14 @@ export default function HabitOrderModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+            className={buttonClassName({ variant: "secondary", size: "sm" })}
           >
             Cancelar
           </button>
           <button
             type="button"
             onClick={onSave}
-            className="px-3 py-2 rounded-lg bg-slate-900 text-white dark:bg-slate-200 dark:text-slate-900 hover:opacity-90 cursor-pointer"
+            className={buttonClassName({ variant: "primary", size: "sm" })}
           >
             Guardar orden
           </button>

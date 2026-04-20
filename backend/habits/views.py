@@ -20,12 +20,13 @@ from django.conf import settings
 from django.core.exceptions import SuspiciousOperation
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.password_validation import validate_password
+from django.core.mail import EmailMultiAlternatives
 from django.utils.http import urlsafe_base64_encode
 from django.utils.http import urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
-from django.core.mail import send_mail
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.template.loader import render_to_string
 
 from .models import Habit, HabitLog, HabitSchedule, UserProfile
 from .serializers import (
@@ -81,6 +82,35 @@ def _invalidate_leaderboard_cache(target_date=None):
     cache.delete(f"{cache_key}:lock")
 
 
+def _build_email_context(user, **extra_context):
+    """Build shared email template context for brand-consistent messages."""
+    display_name = (user.first_name or "").strip() or user.username
+    context = {
+        "brand_name": "VOLICION",
+        "display_name": display_name,
+        "frontend_url": settings.FRONTEND_APP_URL.rstrip("/"),
+        "support_email": settings.DEFAULT_FROM_EMAIL,
+    }
+    context.update(extra_context)
+    return context
+
+
+def _send_templated_email(user, subject, template_name, context):
+    """Send a multipart email rendered from reusable templates."""
+    template_context = _build_email_context(user, **context)
+    html_message = render_to_string(f"habits/emails/{template_name}.html", template_context)
+    text_message = render_to_string(f"habits/emails/{template_name}.txt", template_context)
+
+    email = EmailMultiAlternatives(
+        subject=subject,
+        body=text_message,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[user.email],
+    )
+    email.attach_alternative(html_message, "text/html")
+    email.send(fail_silently=False)
+
+
 def _send_password_reset_email(user):
     """Send password-reset email with uid/token link for a user."""
     uid = urlsafe_base64_encode(force_bytes(user.pk))
@@ -90,19 +120,33 @@ def _send_password_reset_email(user):
         f"{settings.PASSWORD_RESET_PATH}?uid={uid}&token={token}"
     )
 
-    subject = "Restablece tu contraseña en VOLICION"
-    message = (
-        "Recibimos una solicitud para restablecer tu contraseña.\n\n"
-        f"Abre este enlace para continuar:\n{reset_link}\n\n"
-        "Si no solicitaste este cambio, puedes ignorar este correo."
+    _send_templated_email(
+        user,
+        "Restablece tu contraseña en VOLICION",
+        "password_reset",
+        {
+            "reset_link": reset_link,
+        },
     )
 
-    send_mail(
-        subject=subject,
-        message=message,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[user.email],
-        fail_silently=False,
+
+def _send_welcome_email(user):
+    """Send a welcome email after successful registration."""
+    _send_templated_email(
+        user,
+        "Bienvenido a VOLICION",
+        "welcome",
+        {},
+    )
+
+
+def _send_password_changed_email(user):
+    """Send a confirmation email after a password change."""
+    _send_templated_email(
+        user,
+        "Tu contraseña de VOLICION fue actualizada",
+        "password_changed",
+        {},
     )
 
 
@@ -193,6 +237,19 @@ def _registration_week_start(user):
 
     joined_date = timezone.localtime(user.date_joined).date()
     return joined_date - timedelta(days=joined_date.weekday())
+
+
+def _week_progress_phase(evaluated_days, total_days=7):
+    """Classify the week progress so the frontend can tone insights appropriately."""
+    if evaluated_days <= 0:
+        return "future"
+    if evaluated_days >= total_days:
+        return "complete"
+    if evaluated_days <= 2:
+        return "start"
+    if evaluated_days <= 4:
+        return "mid"
+    return "late"
 
 
 def _habit_is_active_on_date(habit, target_date):
@@ -728,43 +785,42 @@ class HabitViewSet(viewsets.ModelViewSet):
 
         week_end = week_start + timedelta(days=6)
         if week_start > today:
-            empty_daily = [
-                {
-                    "date": str(week_start + timedelta(days=i)),
-                    "completion": None,
-                    "done": 0,
-                    "total": 0,
-                }
-                for i in range(7)
-            ]
             return Response(
                 {
-                    "focus": empty_daily[0],
-                    "focus_date": str(week_start),
+                    "focus": None,
+                    "focus_date": None,
                     "is_current_week": False,
                     "week": {
                         "start_date": str(week_start),
                         "end_date": str(week_end),
                         "completion": None,
                     },
-                    "daily": empty_daily,
+                    "daily": [],
+                    "evaluated_days": 0,
+                    "total_days": 7,
+                    "progress_end_date": None,
+                    "week_phase": "future",
                     "baseline_date": str(_metrics_baseline_date(request.user, [])),
                 }
             )
 
         focus_date = min(week_end, today)
         payload = _compute_range_metrics(request.user, week_start, week_end)
+        evaluated_daily = [
+            row for row in payload["daily"] if row["date"] <= str(today)
+        ]
 
         focus_row = next(
-            (row for row in payload["daily"] if row["date"] == str(focus_date)),
-            {"date": str(focus_date), "completion": None, "done": 0, "total": 0},
+            (row for row in evaluated_daily if row["date"] == str(focus_date)),
+            {
+                "date": str(focus_date),
+                "completion": None,
+                "done": 0,
+                "total": 0,
+            },
         )
-        week_rows = payload.get("weekly") or []
-        selected_week = next(
-            (row for row in week_rows if row.get("start_date") == str(week_start)),
-            None,
-        )
-        week_completion = selected_week["completion"] if selected_week else None
+        week_completion = _overall_completion(evaluated_daily)
+        evaluated_days = len(evaluated_daily)
 
         return Response(
             {
@@ -776,7 +832,11 @@ class HabitViewSet(viewsets.ModelViewSet):
                     "end_date": str(week_end),
                     "completion": week_completion,
                 },
-                "daily": payload["daily"],
+                "daily": evaluated_daily,
+                "evaluated_days": evaluated_days,
+                "total_days": 7,
+                "progress_end_date": str(focus_date),
+                "week_phase": _week_progress_phase(evaluated_days),
                 "baseline_date": payload["range"]["baseline_date"],
             }
         )
@@ -1099,7 +1159,13 @@ class RegisterView(APIView):
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        user = serializer.save()
+
+        try:
+            _send_welcome_email(user)
+        except Exception:
+            logger.exception("Failed to send welcome email for user_id=%s", user.id)
+
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
@@ -1263,6 +1329,11 @@ class PasswordResetConfirmView(APIView):
         user.set_password(new_password)
         user.save(update_fields=["password"])
         _increment_token_version(user)
+
+        try:
+            _send_password_changed_email(user)
+        except Exception:
+            logger.exception("Failed to send password-changed email for user_id=%s", user.id)
 
         return Response(
             {"detail": "Tu contraseña se actualizó correctamente."},

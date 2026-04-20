@@ -4,6 +4,7 @@ import {
   getIsoDateLabel,
   getIsoDayNameShort,
 } from "../utils/dateLabels";
+import { isFutureIsoDate } from "../utils/dateUtils";
 
 export default function HabitCardMobile({
   habit,
@@ -28,7 +29,7 @@ export default function HabitCardMobile({
   return (
     <article className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-800/60 p-3 shadow-sm">
       <div className="flex items-start justify-between gap-3">
-        <h4 className="font-semibold text-sm leading-5 break-words">
+        <h4 className="font-semibold text-sm leading-5 whitespace-normal break-normal">
           {habit.name}
         </h4>
         <div className="shrink-0 text-right text-xs">
@@ -44,15 +45,16 @@ export default function HabitCardMobile({
       <div className="mt-3 grid grid-cols-7 gap-1.5">
         {dates.map((date) => (
           <div key={date} className="min-w-0 text-center">
-            <p className="text-[10px] font-medium text-slate-500 dark:text-slate-300 truncate">
+            <p className="text-[11px] font-medium text-slate-500 dark:text-slate-300 truncate">
               {getIsoDayNameShort(date)}
             </p>
-            <p className="text-[10px] text-slate-400 dark:text-slate-400 truncate mb-1">
+            <p className="text-[11px] text-slate-400 dark:text-slate-400 truncate mb-1">
               {getIsoDateLabel(date)}
             </p>
             <TableCell
               status={habit.week[date]}
               onClick={() => onUpdate(habit.habit_id, date, habit.week[date])}
+              isFuture={isFutureIsoDate(date)}
             />
           </div>
         ))}

@@ -56,6 +56,7 @@ class HabitApiTests(APITestCase):
 		access = token_response.data['access']
 		self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {access}')
 
+	@override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
 	def test_register_user(self):
 		payload = {
 			'username': 'charlie',
@@ -67,6 +68,9 @@ class HabitApiTests(APITestCase):
 		self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 		self.assertEqual(response.data['username'], 'charlie')
 		self.assertTrue(User.objects.filter(username='charlie').exists())
+		self.assertEqual(len(mail.outbox), 1)
+		self.assertIn('Bienvenido a VOLICION', mail.outbox[0].subject)
+		self.assertIn('charlie@example.com', mail.outbox[0].to)
 
 	def test_register_rejects_duplicate_username_and_email(self):
 		payload = {
@@ -372,6 +376,9 @@ class HabitApiTests(APITestCase):
 		self.assertIn('is_current_week', response.data)
 		self.assertIn('week', response.data)
 		self.assertIn('daily', response.data)
+		self.assertIn('evaluated_days', response.data)
+		self.assertIn('total_days', response.data)
+		self.assertTrue(all(row['date'] <= str(self.today) for row in response.data['daily']))
 
 	def test_tracker_metrics_allows_future_week(self):
 		self.authenticate('alice', 'Passw0rd123')
@@ -381,10 +388,11 @@ class HabitApiTests(APITestCase):
 		self.assertEqual(response.status_code, status.HTTP_200_OK)
 		self.assertEqual(response.data['week']['start_date'], str(future_week))
 		self.assertIsNone(response.data['week']['completion'])
-		self.assertEqual(response.data['focus_date'], str(future_week))
-		self.assertIsNone(response.data['focus']['completion'])
-		self.assertEqual(len(response.data['daily']), 7)
-		self.assertTrue(all(day['completion'] is None for day in response.data['daily']))
+		self.assertIsNone(response.data['focus_date'])
+		self.assertIsNone(response.data['focus'])
+		self.assertEqual(len(response.data['daily']), 0)
+		self.assertEqual(response.data['evaluated_days'], 0)
+		self.assertEqual(response.data['week_phase'], 'future')
 
 	def test_tracker_metrics_rejects_more_than_one_future_week(self):
 		self.authenticate('alice', 'Passw0rd123')
@@ -864,7 +872,7 @@ class HabitApiTests(APITestCase):
 		response = self.client.post('/api/profile/password-reset/', {}, format='json')
 		self.assertEqual(response.status_code, status.HTTP_200_OK)
 		self.assertEqual(len(mail.outbox), 1)
-		self.assertIn('VOLICION', mail.outbox[0].subject)
+		self.assertIn('Restablece tu contraseña en VOLICION', mail.outbox[0].subject)
 		self.assertIn('alice@example.com', mail.outbox[0].to)
 
 	def test_profile_password_reset_requires_email(self):
@@ -890,6 +898,8 @@ class HabitApiTests(APITestCase):
 			format='json',
 		)
 		self.assertEqual(response.status_code, status.HTTP_200_OK)
+		self.assertEqual(len(mail.outbox), 1)
+		self.assertIn('Tu contraseña de VOLICION fue actualizada', mail.outbox[0].subject)
 
 		login_response = self.client.post(
 			'/api/token/',
@@ -957,6 +967,7 @@ class HabitApiTests(APITestCase):
 		)
 		self.assertEqual(response.status_code, status.HTTP_200_OK)
 		self.assertEqual(len(mail.outbox), 1)
+		self.assertIn('Restablece tu contraseña en VOLICION', mail.outbox[0].subject)
 		self.assertIn('alice@example.com', mail.outbox[0].to)
 
 	@override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
@@ -975,7 +986,7 @@ class HabitApiTests(APITestCase):
 		self.assertEqual(response.data.get('code'), 'email_required')
 
 	@override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
-	@patch('habits.views.send_mail', side_effect=Exception('smtp down'))
+	@patch('habits.views.EmailMultiAlternatives.send', side_effect=Exception('smtp down'))
 	def test_profile_password_reset_returns_error_when_email_fails(self, mock_send_mail):
 		self.authenticate('alice', 'Passw0rd123')
 
@@ -986,7 +997,7 @@ class HabitApiTests(APITestCase):
 		self.assertEqual(response.data.get('code'), 'email_send_failed')
 
 	@override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
-	@patch('habits.views.send_mail', side_effect=Exception('smtp down'))
+	@patch('habits.views.EmailMultiAlternatives.send', side_effect=Exception('smtp down'))
 	def test_password_reset_request_logs_email_failure_but_returns_generic_success(self, mock_send_mail):
 		with self.assertLogs('habits.views', level='ERROR'):
 			response = self.client.post(
