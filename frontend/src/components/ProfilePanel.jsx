@@ -5,8 +5,11 @@ import {
   requestPasswordResetEmail,
   updateProfile,
 } from "../api/auth";
+import { getTrackerMetrics, getWeekly } from "../api/habits";
 import defaultAvatar from "../assets/default-avatar.svg";
 import LoadingSpinner from "./LoadingSpinner";
+import { formatPercent } from "../utils/completion";
+import { getCurrentWeekStartIsoDate } from "../utils/dateUtils";
 import {
   buttonClassName,
   helpTextClassName,
@@ -36,6 +39,31 @@ const initialForm = {
 
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+const FIELD_NAMES = [
+  "first_name",
+  "last_name",
+  "email",
+  "birth_date",
+  "weight_kg",
+  "gender",
+];
+
+const buildSnapshot = (form, avatarUrl) => ({
+  form: {
+    first_name: form.first_name || "",
+    last_name: form.last_name || "",
+    email: form.email || "",
+    birth_date: form.birth_date || "",
+    weight_kg:
+      form.weight_kg === null || form.weight_kg === undefined
+        ? ""
+        : String(form.weight_kg),
+    gender: ALLOWED_GENDERS.has(form.gender)
+      ? form.gender
+      : "prefer_not_to_say",
+  },
+  avatarUrl: avatarUrl || "",
+});
 
 /**
  * Profile editor for authenticated users.
@@ -45,10 +73,17 @@ const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
  */
 export default function ProfilePanel({ onProfileChange }) {
   const [form, setForm] = useState(initialForm);
+  const [savedSnapshot, setSavedSnapshot] = useState(
+    buildSnapshot(initialForm, ""),
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [successVisible, setSuccessVisible] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [touchedFields, setTouchedFields] = useState({});
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState("");
   const [persistedAvatarPreview, setPersistedAvatarPreview] = useState("");
@@ -60,33 +95,200 @@ export default function ProfilePanel({ onProfileChange }) {
   const [pendingPhoto, setPendingPhoto] = useState(null);
   const [sendingResetEmail, setSendingResetEmail] = useState(false);
   const [passwordResetMessage, setPasswordResetMessage] = useState("");
+  const [profileSummary, setProfileSummary] = useState({
+    streakCurrent: null,
+    averageCompletion: null,
+  });
+  const [summaryLoading, setSummaryLoading] = useState(true);
   const fileInputRef = useRef(null);
+
+  const validateField = (fieldName, value, formState = form) => {
+    const normalizedValue = typeof value === "string" ? value.trim() : value;
+
+    if (fieldName === "email") {
+      if (!normalizedValue) {
+        return "Ingresa tu correo electrónico.";
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(normalizedValue)) {
+        return "Ingresa un correo válido.";
+      }
+    }
+
+    if (fieldName === "birth_date" && normalizedValue) {
+      const selectedDate = new Date(`${normalizedValue}T00:00:00`);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (selectedDate > today) {
+        return "La fecha no puede ser futura.";
+      }
+    }
+
+    if (fieldName === "weight_kg" && normalizedValue !== "") {
+      const weight = Number(normalizedValue);
+      if (Number.isNaN(weight)) {
+        return "Ingresa un número válido.";
+      }
+
+      if (weight < 0) {
+        return "El peso no puede ser negativo.";
+      }
+    }
+
+    if (fieldName === "gender") {
+      const selectedGender = formState.gender;
+      if (!ALLOWED_GENDERS.has(selectedGender)) {
+        return "Selecciona una opción válida.";
+      }
+    }
+
+    return "";
+  };
+
+  const validateForm = (formState = form) => {
+    const nextErrors = {};
+
+    FIELD_NAMES.forEach((fieldName) => {
+      const fieldError = validateField(
+        fieldName,
+        formState[fieldName],
+        formState,
+      );
+      if (fieldError) {
+        nextErrors[fieldName] = fieldError;
+      }
+    });
+
+    return nextErrors;
+  };
+
+  const getVisibleFieldError = (fieldName) => {
+    if (!fieldErrors[fieldName]) return "";
+    if (submitAttempted || touchedFields[fieldName]) {
+      return fieldErrors[fieldName];
+    }
+    return "";
+  };
+
+  const isFieldDirty = (fieldName) =>
+    form[fieldName] !== savedSnapshot.form[fieldName];
+
+  const hasFormChanges = FIELD_NAMES.some((fieldName) =>
+    isFieldDirty(fieldName),
+  );
+  const hasAvatarChanges =
+    Boolean(avatarFile) ||
+    removeAvatar ||
+    avatarPreview !== savedSnapshot.avatarUrl;
+  const isDirty = hasFormChanges || hasAvatarChanges;
+
+  const updateField = (fieldName, value) => {
+    if (success) {
+      setSuccess("");
+    }
+
+    setForm((prev) => {
+      const nextForm = { ...prev, [fieldName]: value };
+
+      if (submitAttempted || touchedFields[fieldName]) {
+        const nextError = validateField(fieldName, value, nextForm);
+        setFieldErrors((prevErrors) => {
+          if (!nextError && !prevErrors[fieldName]) {
+            return prevErrors;
+          }
+
+          const clonedErrors = { ...prevErrors };
+          if (nextError) {
+            clonedErrors[fieldName] = nextError;
+          } else {
+            delete clonedErrors[fieldName];
+          }
+          return clonedErrors;
+        });
+      }
+
+      return nextForm;
+    });
+  };
+
+  const handleFieldBlur = (fieldName) => {
+    setTouchedFields((prev) => ({ ...prev, [fieldName]: true }));
+    const nextError = validateField(fieldName, form[fieldName], form);
+    setFieldErrors((prevErrors) => {
+      const clonedErrors = { ...prevErrors };
+      if (nextError) {
+        clonedErrors[fieldName] = nextError;
+      } else {
+        delete clonedErrors[fieldName];
+      }
+      return clonedErrors;
+    });
+  };
 
   useEffect(() => {
     let isCancelled = false;
 
     const loadProfile = async () => {
+      const weekStart = getCurrentWeekStartIsoDate();
+
       try {
         if (!isCancelled) {
           setLoading(true);
+          setSummaryLoading(true);
           setError("");
         }
-        const profile = await fetchProfile();
-        const remoteAvatar = profile.avatar_file_url || "";
+        const [profile, trackerMetrics, weekly] = await Promise.allSettled([
+          fetchProfile(),
+          getTrackerMetrics(weekStart),
+          getWeekly(weekStart),
+        ]);
+
+        if (profile.status !== "fulfilled") {
+          throw profile.reason;
+        }
+
+        const profileData = profile.value;
+        const metricsData =
+          trackerMetrics.status === "fulfilled" ? trackerMetrics.value : null;
+        const weeklyData = weekly.status === "fulfilled" ? weekly.value : null;
+
+        const habits = Array.isArray(weeklyData?.habits)
+          ? weeklyData.habits
+          : [];
+        const streakCurrent = habits.reduce(
+          (maxStreak, habit) => Math.max(maxStreak, habit?.streak_current || 0),
+          0,
+        );
+        const averageCompletion = metricsData?.week?.completion ?? null;
+
+        const remoteAvatar = profileData.avatar_file_url || "";
         if (!isCancelled) {
-          setForm({
-            first_name: profile.first_name || "",
-            last_name: profile.last_name || "",
-            email: profile.email || "",
-            birth_date: profile.birth_date || "",
-            weight_kg: profile.weight_kg || "",
-            gender: ALLOWED_GENDERS.has(profile.gender)
-              ? profile.gender
+          const normalizedForm = {
+            first_name: profileData.first_name || "",
+            last_name: profileData.last_name || "",
+            email: profileData.email || "",
+            birth_date: profileData.birth_date || "",
+            weight_kg: profileData.weight_kg || "",
+            gender: ALLOWED_GENDERS.has(profileData.gender)
+              ? profileData.gender
               : "prefer_not_to_say",
+          };
+
+          setForm({
+            ...normalizedForm,
           });
           setPersistedAvatarPreview(remoteAvatar);
           setAvatarPreview(remoteAvatar);
           setHasCustomAvatar(Boolean(remoteAvatar));
+          setSavedSnapshot(buildSnapshot(normalizedForm, remoteAvatar));
+          setFieldErrors({});
+          setTouchedFields({});
+          setSubmitAttempted(false);
+          setProfileSummary({
+            streakCurrent,
+            averageCompletion,
+          });
         }
       } catch (requestError) {
         if (!isCancelled) {
@@ -97,6 +299,7 @@ export default function ProfilePanel({ onProfileChange }) {
       } finally {
         if (!isCancelled) {
           setLoading(false);
+          setSummaryLoading(false);
         }
       }
     };
@@ -114,6 +317,26 @@ export default function ProfilePanel({ onProfileChange }) {
       }
     };
   }, [previewObjectUrl]);
+
+  useEffect(() => {
+    if (!success) {
+      setSuccessVisible(false);
+      return;
+    }
+
+    setSuccessVisible(true);
+    const fadeTimer = setTimeout(() => {
+      setSuccessVisible(false);
+    }, 3600);
+    const clearTimer = setTimeout(() => {
+      setSuccess("");
+    }, 4200);
+
+    return () => {
+      clearTimeout(fadeTimer);
+      clearTimeout(clearTimer);
+    };
+  }, [success]);
 
   const saveProfile = async () => {
     // Send multipart only when uploading an avatar file.
@@ -152,13 +375,29 @@ export default function ProfilePanel({ onProfileChange }) {
       }
 
       const updatedProfile = await updateProfile(payload);
+      const nextAvatar = updatedProfile.avatar_file_url || "";
+      const nextForm = {
+        first_name: updatedProfile.first_name || "",
+        last_name: updatedProfile.last_name || "",
+        email: updatedProfile.email || "",
+        birth_date: updatedProfile.birth_date || "",
+        weight_kg: updatedProfile.weight_kg || "",
+        gender: ALLOWED_GENDERS.has(updatedProfile.gender)
+          ? updatedProfile.gender
+          : "prefer_not_to_say",
+      };
+
+      setForm(nextForm);
       setSuccess("Perfil actualizado.");
       setAvatarFile(null);
       setRemoveAvatar(false);
-      const nextAvatar = updatedProfile.avatar_file_url || "";
       setPersistedAvatarPreview(nextAvatar);
       setAvatarPreview(nextAvatar);
       setHasCustomAvatar(Boolean(nextAvatar));
+      setSavedSnapshot(buildSnapshot(nextForm, nextAvatar));
+      setFieldErrors({});
+      setTouchedFields({});
+      setSubmitAttempted(false);
       onProfileChange?.(updatedProfile);
     } catch (requestError) {
       setError(
@@ -171,7 +410,15 @@ export default function ProfilePanel({ onProfileChange }) {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    if (saving) return;
+    if (saving || !isDirty) return;
+
+    setSubmitAttempted(true);
+    const nextErrors = validateForm(form);
+    setFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
+      return;
+    }
+
     setShowSaveConfirm(true);
   };
 
@@ -215,6 +462,36 @@ export default function ProfilePanel({ onProfileChange }) {
         <h2 className="text-xl font-semibold mt-1">Tu perfil</h2>
       </div>
 
+      <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/60 p-4">
+          <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-300">
+            Racha actual
+          </p>
+          <p className="mt-1 text-2xl font-semibold text-slate-800 dark:text-slate-100">
+            {summaryLoading
+              ? "..."
+              : `${profileSummary.streakCurrent ?? 0} días`}
+          </p>
+          <p className="text-xs text-slate-500 dark:text-slate-300 mt-1">
+            Tu mejor racha activa entre hábitos esta semana.
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/60 p-4">
+          <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-300">
+            Cumplimiento promedio
+          </p>
+          <p className="mt-1 text-2xl font-semibold text-slate-800 dark:text-slate-100">
+            {summaryLoading
+              ? "..."
+              : formatPercent(profileSummary.averageCompletion)}
+          </p>
+          <p className="text-xs text-slate-500 dark:text-slate-300 mt-1">
+            Promedio de avance de la semana en curso.
+          </p>
+        </div>
+      </div>
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/60">
           <img
@@ -230,6 +507,7 @@ export default function ProfilePanel({ onProfileChange }) {
               <button
                 type="button"
                 onClick={() => {
+                  setSuccess("");
                   setPendingPhoto(null);
                   setShowPhotoModal(true);
                 }}
@@ -245,6 +523,7 @@ export default function ProfilePanel({ onProfileChange }) {
                 <button
                   type="button"
                   onClick={() => {
+                    setSuccess("");
                     setAvatarFile(null);
                     if (previewObjectUrl) {
                       URL.revokeObjectURL(previewObjectUrl);
@@ -265,6 +544,7 @@ export default function ProfilePanel({ onProfileChange }) {
                 <button
                   type="button"
                   onClick={() => {
+                    setSuccess("");
                     setAvatarFile(null);
                     setRemoveAvatar(true);
                     setHasCustomAvatar(false);
@@ -283,6 +563,7 @@ export default function ProfilePanel({ onProfileChange }) {
                 <button
                   type="button"
                   onClick={() => {
+                    setSuccess("");
                     setRemoveAvatar(false);
                     setHasCustomAvatar(Boolean(persistedAvatarPreview));
                     setAvatarPreview(persistedAvatarPreview);
@@ -301,79 +582,182 @@ export default function ProfilePanel({ onProfileChange }) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className={`${labelClassName} mb-1`}>Nombre</label>
+            <label
+              className={`${labelClassName} mb-1 flex items-center gap-1.5`}
+            >
+              Nombre
+              {isFieldDirty("first_name") && (
+                <span
+                  className="inline-block h-1.5 w-1.5 rounded-full bg-sky-500/80"
+                  aria-label="Campo modificado"
+                />
+              )}
+            </label>
             <input
               type="text"
               value={form.first_name}
               onChange={(event) =>
-                setForm((prev) => ({ ...prev, first_name: event.target.value }))
+                updateField("first_name", event.target.value)
               }
-              className={inputClassName}
+              onBlur={() => handleFieldBlur("first_name")}
+              className={`${inputClassName} ${
+                isFieldDirty("first_name")
+                  ? "border-sky-400/80 dark:border-sky-500/70"
+                  : ""
+              }`}
             />
+            {getVisibleFieldError("first_name") && (
+              <p className="mt-1.5 text-xs text-red-600 dark:text-red-300">
+                {getVisibleFieldError("first_name")}
+              </p>
+            )}
           </div>
 
           <div>
-            <label className={`${labelClassName} mb-1`}>Apellido</label>
+            <label
+              className={`${labelClassName} mb-1 flex items-center gap-1.5`}
+            >
+              Apellido
+              {isFieldDirty("last_name") && (
+                <span
+                  className="inline-block h-1.5 w-1.5 rounded-full bg-sky-500/80"
+                  aria-label="Campo modificado"
+                />
+              )}
+            </label>
             <input
               type="text"
               value={form.last_name}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, last_name: event.target.value }))
-              }
-              className={inputClassName}
+              onChange={(event) => updateField("last_name", event.target.value)}
+              onBlur={() => handleFieldBlur("last_name")}
+              className={`${inputClassName} ${
+                isFieldDirty("last_name")
+                  ? "border-sky-400/80 dark:border-sky-500/70"
+                  : ""
+              }`}
             />
+            {getVisibleFieldError("last_name") && (
+              <p className="mt-1.5 text-xs text-red-600 dark:text-red-300">
+                {getVisibleFieldError("last_name")}
+              </p>
+            )}
           </div>
 
           <div>
-            <label className={`${labelClassName} mb-1`}>
+            <label
+              className={`${labelClassName} mb-1 flex items-center gap-1.5`}
+            >
               Correo electrónico
+              {isFieldDirty("email") && (
+                <span
+                  className="inline-block h-1.5 w-1.5 rounded-full bg-sky-500/80"
+                  aria-label="Campo modificado"
+                />
+              )}
             </label>
             <input
               type="email"
               value={form.email}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, email: event.target.value }))
-              }
-              className={inputClassName}
+              onChange={(event) => updateField("email", event.target.value)}
+              onBlur={() => handleFieldBlur("email")}
+              className={`${inputClassName} ${
+                isFieldDirty("email")
+                  ? "border-sky-400/80 dark:border-sky-500/70"
+                  : ""
+              }`}
             />
+            {getVisibleFieldError("email") && (
+              <p className="mt-1.5 text-xs text-red-600 dark:text-red-300">
+                {getVisibleFieldError("email")}
+              </p>
+            )}
           </div>
 
           <div>
-            <label className={`${labelClassName} mb-1`}>
+            <label
+              className={`${labelClassName} mb-1 flex items-center gap-1.5`}
+            >
               Fecha de nacimiento
+              {isFieldDirty("birth_date") && (
+                <span
+                  className="inline-block h-1.5 w-1.5 rounded-full bg-sky-500/80"
+                  aria-label="Campo modificado"
+                />
+              )}
             </label>
             <input
               type="date"
               value={form.birth_date}
               onChange={(event) =>
-                setForm((prev) => ({ ...prev, birth_date: event.target.value }))
+                updateField("birth_date", event.target.value)
               }
-              className={inputClassName}
+              onBlur={() => handleFieldBlur("birth_date")}
+              className={`${inputClassName} ${
+                isFieldDirty("birth_date")
+                  ? "border-sky-400/80 dark:border-sky-500/70"
+                  : ""
+              }`}
             />
+            {getVisibleFieldError("birth_date") && (
+              <p className="mt-1.5 text-xs text-red-600 dark:text-red-300">
+                {getVisibleFieldError("birth_date")}
+              </p>
+            )}
           </div>
 
           <div>
-            <label className={`${labelClassName} mb-1`}>Peso (kg)</label>
+            <label
+              className={`${labelClassName} mb-1 flex items-center gap-1.5`}
+            >
+              Peso (kg)
+              {isFieldDirty("weight_kg") && (
+                <span
+                  className="inline-block h-1.5 w-1.5 rounded-full bg-sky-500/80"
+                  aria-label="Campo modificado"
+                />
+              )}
+            </label>
             <input
               type="number"
               min="0"
               step="0.01"
               value={form.weight_kg}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, weight_kg: event.target.value }))
-              }
-              className={inputClassName}
+              onChange={(event) => updateField("weight_kg", event.target.value)}
+              onBlur={() => handleFieldBlur("weight_kg")}
+              className={`${inputClassName} ${
+                isFieldDirty("weight_kg")
+                  ? "border-sky-400/80 dark:border-sky-500/70"
+                  : ""
+              }`}
             />
+            {getVisibleFieldError("weight_kg") && (
+              <p className="mt-1.5 text-xs text-red-600 dark:text-red-300">
+                {getVisibleFieldError("weight_kg")}
+              </p>
+            )}
           </div>
 
           <div>
-            <label className={`${labelClassName} mb-1`}>Género</label>
+            <label
+              className={`${labelClassName} mb-1 flex items-center gap-1.5`}
+            >
+              Género
+              {isFieldDirty("gender") && (
+                <span
+                  className="inline-block h-1.5 w-1.5 rounded-full bg-sky-500/80"
+                  aria-label="Campo modificado"
+                />
+              )}
+            </label>
             <select
               value={form.gender}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, gender: event.target.value }))
-              }
-              className={inputClassName}
+              onChange={(event) => updateField("gender", event.target.value)}
+              onBlur={() => handleFieldBlur("gender")}
+              className={`${inputClassName} ${
+                isFieldDirty("gender")
+                  ? "border-sky-400/80 dark:border-sky-500/70"
+                  : ""
+              }`}
             >
               {GENDER_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -381,6 +765,11 @@ export default function ProfilePanel({ onProfileChange }) {
                 </option>
               ))}
             </select>
+            {getVisibleFieldError("gender") && (
+              <p className="mt-1.5 text-xs text-red-600 dark:text-red-300">
+                {getVisibleFieldError("gender")}
+              </p>
+            )}
           </div>
         </div>
 
@@ -390,7 +779,11 @@ export default function ProfilePanel({ onProfileChange }) {
           </p>
         )}
         {success && (
-          <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
+          <p
+            className={`fade-in rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 transition-opacity duration-500 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300 ${
+              successVisible ? "opacity-100" : "opacity-0"
+            }`}
+          >
             {success}
           </p>
         )}
@@ -401,14 +794,30 @@ export default function ProfilePanel({ onProfileChange }) {
         )}
 
         <div className="pt-2">
+          {isDirty && (
+            <p className="mb-2 text-xs text-slate-500 dark:text-slate-300 fade-in">
+              Tienes cambios sin guardar.
+            </p>
+          )}
           <div className="flex flex-col sm:flex-row gap-2">
             <button
               type="submit"
-              disabled={saving}
-              className={buttonClassName({ variant: "primary" })}
+              disabled={saving || !isDirty}
+              className={`${buttonClassName({ variant: "primary" })} transition-transform duration-150 hover:-translate-y-0.5 disabled:hover:translate-y-0`}
               aria-busy={saving}
+              title={!isDirty && !saving ? "No hay cambios" : undefined}
             >
-              {saving ? "Guardando..." : "Guardar perfil"}
+              {saving ? (
+                <>
+                  <span
+                    className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white dark:border-slate-600 dark:border-t-slate-900"
+                    aria-hidden="true"
+                  />
+                  Guardando...
+                </>
+              ) : (
+                "Guardar perfil"
+              )}
             </button>
             <button
               type="button"
@@ -453,7 +862,17 @@ export default function ProfilePanel({ onProfileChange }) {
                 className={buttonClassName({ variant: "primary", size: "sm" })}
                 aria-busy={saving}
               >
-                {saving ? "Guardando..." : "Sí, guardar"}
+                {saving ? (
+                  <>
+                    <span
+                      className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white dark:border-slate-600 dark:border-t-slate-900"
+                      aria-hidden="true"
+                    />
+                    Guardando...
+                  </>
+                ) : (
+                  "Sí, guardar"
+                )}
               </button>
             </div>
           </div>
@@ -544,6 +963,7 @@ export default function ProfilePanel({ onProfileChange }) {
                   setAvatarPreview(url);
                   setPendingPhoto(null);
                   setShowPhotoModal(false);
+                  setSuccess("");
                 }}
                 className={buttonClassName({ variant: "primary", size: "sm" })}
               >

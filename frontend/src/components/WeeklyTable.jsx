@@ -12,6 +12,13 @@ import { getCurrentWeekStartIsoDate } from "../utils/dateUtils";
 import { loadHabitOrder, saveHabitOrder } from "../utils/habitOrderStorage";
 import LoadingSpinner from "./LoadingSpinner";
 
+const DONE_FEEDBACK_MESSAGES = [
+  "Buen trabajo. Sumaste otro check a tu semana.",
+  "Excelente. Sigues construyendo constancia.",
+  "¡Hecho! Un paso más hacia tu mejor racha.",
+  "Muy bien. Mantener el ritmo es lo que cuenta.",
+];
+
 /**
  * Weekly tracker table that coordinates CRUD actions, status updates, and insights.
  */
@@ -180,7 +187,18 @@ export default function WeeklyTable({ onDataChanged, storageNamespace }) {
   };
 
   const handleHabitUpdate = async (...args) => {
+    const [, , currentStatus] = args;
     const result = await handleUpdate(...args);
+
+    if (result?.success && currentStatus === "pending") {
+      const randomMessage =
+        DONE_FEEDBACK_MESSAGES[
+          Math.floor(Math.random() * DONE_FEEDBACK_MESSAGES.length)
+        ];
+      showToast(randomMessage, "success");
+      return;
+    }
+
     if (!result?.success) {
       showToast(
         result?.message || "No pudimos actualizar el estado del hábito",

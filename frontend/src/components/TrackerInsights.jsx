@@ -1,15 +1,19 @@
 import CompletionRing from "./CompletionRing";
-import { formatPercent, getCompletionColor } from "../utils/completion";
+import { formatPercent } from "../utils/completion";
 import {
   getIsoDayNameShort,
   formatReadableDateRange,
 } from "../utils/dateLabels";
 import CardHeader from "./CardHeader";
-
-const getBarHeight = (value) => {
-  if (value === null || value === undefined) return 8;
-  return Math.max(8, Math.round((value / 100) * 120));
-};
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 const formatInsightDate = (isoDate) => {
   if (!isoDate) return "Fecha desconocida";
@@ -26,6 +30,28 @@ const formatDateList = (dates) => {
   if (dates.length === 1) return dates[0];
   if (dates.length === 2) return `${dates[0]} y ${dates[1]}`;
   return `${dates[0]}, ${dates[1]} y ${dates.length - 2} más`;
+};
+
+const TrendTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) {
+    return null;
+  }
+
+  const value = payload[0]?.value;
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 px-3 py-2 shadow-sm">
+      <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
+        {label}
+      </p>
+      <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+        {formatPercent(value)}
+      </p>
+    </div>
+  );
 };
 
 const toneStyles = {
@@ -335,6 +361,32 @@ export default function TrackerInsights({ metrics }) {
     evaluatedDays > 0 &&
     evaluatedDays < totalDays;
   const showTrendInline = safeDaily.length > 0 && safeDaily.length <= 7;
+  const trendRawRows = safeDaily.slice(0, Math.max(evaluatedDays, 0));
+  const trendChartData = trendRawRows
+    .filter((row) =>
+      Number.isFinite(
+        typeof row?.completion === "number"
+          ? row.completion
+          : Number(row?.completion),
+      ),
+    )
+    .map((row) => {
+      const numericCompletion =
+        typeof row.completion === "number"
+          ? row.completion
+          : Number(row.completion);
+      return {
+        day: getIsoDayNameShort(row.date),
+        completion: Math.max(0, Math.min(100, numericCompletion)),
+      };
+    });
+  const hasTrendData = trendChartData.length > 0;
+  const isSingleTrendDay = trendChartData.length === 1;
+  const trendBarSize =
+    trendChartData.length <= 2 ? 40 : trendChartData.length <= 4 ? 30 : 22;
+  const trendXAxisPadding = isSingleTrendDay
+    ? { left: 64, right: 64 }
+    : { left: 8, right: 8 };
 
   return (
     <div className="mt-7 rounded-2xl border border-slate-200/80 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-900/70 p-5">
@@ -396,29 +448,56 @@ export default function TrackerInsights({ metrics }) {
               title="Tendencia semanal"
               badge={formatPercent(week?.completion)}
             />
-            <div className="flex-1 flex items-end gap-2 pb-1 justify-between min-h-32">
-              {safeDaily.map((row) => (
-                <div key={row.date} className="flex-1 min-w-8 text-center">
-                  <div className="h-32 flex items-end justify-center">
-                    <div
-                      className="w-full max-w-7 rounded-t-md"
-                      style={{ height: `${getBarHeight(row.completion)}px` }}
-                      title={formatPercent(row.completion)}
-                      aria-label={`${row.date} ${formatPercent(row.completion)}`}
-                    >
-                      <div
-                        className="w-full h-full rounded-t-md"
-                        style={{
-                          backgroundColor: getCompletionColor(row.completion),
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    {getIsoDayNameShort(row.date)}
-                  </p>
-                </div>
-              ))}
+            <div className="mt-3 h-40">
+              {!hasTrendData && (
+                <p className="flex h-full items-center justify-center text-sm text-slate-500 dark:text-slate-300 text-center px-4">
+                  Aún no hay datos suficientes para mostrar tendencia
+                </p>
+              )}
+
+              {hasTrendData && (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={trendChartData}
+                    margin={{ top: 8, right: 6, left: 6, bottom: 0 }}
+                    barCategoryGap={isSingleTrendDay ? "52%" : "28%"}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="#cbd5e1"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="day"
+                      tick={{ fontSize: 11, fill: "#64748b" }}
+                      axisLine={false}
+                      tickLine={false}
+                      padding={trendXAxisPadding}
+                    />
+                    <YAxis
+                      domain={[0, 100]}
+                      ticks={[0, 25, 50, 75, 100]}
+                      allowDecimals={false}
+                      tick={{ fontSize: 11, fill: "#64748b" }}
+                      tickMargin={6}
+                      axisLine={false}
+                      tickLine={false}
+                      width={34}
+                    />
+                    <Tooltip
+                      content={<TrendTooltip />}
+                      cursor={{ fill: "rgba(148, 163, 184, 0.16)" }}
+                    />
+                    <Bar
+                      dataKey="completion"
+                      fill="#16a34a"
+                      radius={[6, 6, 0, 0]}
+                      maxBarSize={44}
+                      barSize={trendBarSize}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
             <p className="text-xs text-slate-500 mt-3 text-center min-h-8">
               {formatReadableDateRange(week?.start_date, week?.end_date)}
@@ -433,35 +512,56 @@ export default function TrackerInsights({ metrics }) {
             title="Tendencia semanal"
             badge={formatPercent(week?.completion)}
           />
-          <div className="flex items-end gap-3 h-36 overflow-x-auto pb-1">
-            {safeDaily.length === 0 && (
-              <p className="text-sm text-slate-500">
-                Aún no hay datos para esta semana.
+          <div className="h-44 mt-3">
+            {!hasTrendData && (
+              <p className="text-sm text-slate-500 dark:text-slate-300 text-center h-full flex items-center justify-center px-4">
+                Aún no hay datos suficientes para mostrar tendencia
               </p>
             )}
 
-            {safeDaily.map((row) => (
-              <div key={row.date} className="min-w-10 text-center">
-                <div className="h-32 flex items-end justify-center">
-                  <div
-                    className="w-7 rounded-t-md"
-                    style={{ height: `${getBarHeight(row.completion)}px` }}
-                    title={formatPercent(row.completion)}
-                    aria-label={`${row.date} ${formatPercent(row.completion)}`}
-                  >
-                    <div
-                      className="w-full h-full rounded-t-md"
-                      style={{
-                        backgroundColor: getCompletionColor(row.completion),
-                      }}
-                    />
-                  </div>
-                </div>
-                <p className="text-[11px] text-slate-500 mt-1">
-                  {getIsoDayNameShort(row.date)}
-                </p>
-              </div>
-            ))}
+            {hasTrendData && (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={trendChartData}
+                  margin={{ top: 8, right: 8, left: 6, bottom: 0 }}
+                  barCategoryGap={isSingleTrendDay ? "52%" : "30%"}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#cbd5e1"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="day"
+                    tick={{ fontSize: 11, fill: "#64748b" }}
+                    axisLine={false}
+                    tickLine={false}
+                    padding={trendXAxisPadding}
+                  />
+                  <YAxis
+                    domain={[0, 100]}
+                    ticks={[0, 25, 50, 75, 100]}
+                    allowDecimals={false}
+                    tick={{ fontSize: 11, fill: "#64748b" }}
+                    tickMargin={6}
+                    axisLine={false}
+                    tickLine={false}
+                    width={34}
+                  />
+                  <Tooltip
+                    content={<TrendTooltip />}
+                    cursor={{ fill: "rgba(148, 163, 184, 0.16)" }}
+                  />
+                  <Bar
+                    dataKey="completion"
+                    fill="#16a34a"
+                    radius={[6, 6, 0, 0]}
+                    maxBarSize={44}
+                    barSize={trendBarSize}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
           <p className="text-xs text-slate-500 mt-3 text-center min-h-8">
             {formatReadableDateRange(week?.start_date, week?.end_date)}

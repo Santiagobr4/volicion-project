@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { getLeaderboard } from "../api/habits";
-import { formatPercent, getCompletionTailwindClass } from "../utils/completion";
+import {
+  formatPercent,
+  getCompletionLevel,
+  getCompletionTailwindClass,
+} from "../utils/completion";
 import LoadingSpinner from "./LoadingSpinner";
 import defaultAvatar from "../assets/default-avatar.svg";
 
@@ -50,6 +54,18 @@ const getRowStyle = (index) => {
   }
   return "bg-white/80 dark:bg-slate-900/50 border-slate-200/70 dark:border-slate-700/60";
 };
+
+const getPlacementBadge = (index) => {
+  if (index === 0) return "Top 1";
+  if (index <= 2) return "Top 3";
+  return null;
+};
+
+const isZeroEngagement = (row) =>
+  (row?.daily_completion ?? 0) === 0 &&
+  (row?.weekly_completion ?? 0) === 0 &&
+  (row?.monthly_completion ?? 0) === 0 &&
+  (row?.historical_completion ?? 0) === 0;
 
 const formatLeaderNames = (leaders) => {
   if (!leaders.length) return "";
@@ -332,14 +348,20 @@ export default function RankingPanel({ refreshVersion = 0 }) {
     };
   }, [refreshVersion]);
 
+  const visibleRanking = useMemo(
+    () => ranking.filter((row) => !isZeroEngagement(row)),
+    [ranking],
+  );
+  const hiddenZeroCount = Math.max(ranking.length - visibleRanking.length, 0);
+
   const rankingInsights = useMemo(() => {
-    const dailyPerfect = ranking.filter(
+    const dailyPerfect = visibleRanking.filter(
       (row) => row.daily_completion === 100,
     ).length;
-    const weeklyPerfect = ranking.filter(
+    const weeklyPerfect = visibleRanking.filter(
       (row) => row.weekly_completion === 100,
     ).length;
-    const historicalPerfect = ranking.filter(
+    const historicalPerfect = visibleRanking.filter(
       (row) => row.historical_completion === 100,
     ).length;
 
@@ -349,24 +371,24 @@ export default function RankingPanel({ refreshVersion = 0 }) {
         title: "Líder diario",
         highlight: highlights?.daily,
         perfectCount: dailyPerfect,
-        ranking,
+        ranking: visibleRanking,
       }),
       buildHighlightInsight({
         metricKey: "weekly",
         title: "Líder semanal",
         highlight: highlights?.weekly,
         perfectCount: weeklyPerfect,
-        ranking,
+        ranking: visibleRanking,
       }),
       buildHighlightInsight({
         metricKey: "historical",
         title: "Líder histórico de cumplimiento",
         highlight: highlights?.historical,
         perfectCount: historicalPerfect,
-        ranking,
+        ranking: visibleRanking,
       }),
     ];
-  }, [highlights, ranking]);
+  }, [highlights, visibleRanking]);
 
   if (loading) {
     return (
@@ -384,7 +406,9 @@ export default function RankingPanel({ refreshVersion = 0 }) {
     );
   }
 
-  const mobileRanking = showAllMobileRanks ? ranking : ranking.slice(0, 3);
+  const mobileRanking = showAllMobileRanks
+    ? visibleRanking
+    : visibleRanking.slice(0, 3);
 
   return (
     <div className="rounded-2xl border border-slate-200/80 bg-white/90 dark:bg-slate-900/80 dark:border-slate-700 p-3 sm:p-4 md:p-6 shadow-sm">
@@ -398,10 +422,10 @@ export default function RankingPanel({ refreshVersion = 0 }) {
         </div>
 
         <p className="text-sm text-slate-500 dark:text-slate-300 mt-2">
-          Basada en tu cumplimiento diario, semanal y mensual.
+          Mira quién viene sosteniendo mejor el ritmo diario, semanal y mensual.
         </p>
         <p className="text-xs text-slate-500 dark:text-slate-300 mt-2">
-          Orden del ranking global: diario, luego semanal, luego mensual y por
+          Orden global: primero diario, luego semanal, después mensual y por
           último histórico.
         </p>
       </div>
@@ -422,16 +446,24 @@ export default function RankingPanel({ refreshVersion = 0 }) {
         ))}
       </div>
 
-      {ranking.length === 0 && (
+      {visibleRanking.length === 0 && (
         <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 mb-4 bg-slate-50/70 dark:bg-slate-800/70 text-sm text-slate-600 dark:text-slate-300">
-          Todavía no hay participantes con datos suficientes para la
-          clasificación.
+          Aún no hay participantes con actividad suficiente para mostrar una
+          clasificación útil.
         </div>
       )}
 
-      {ranking.length > 0 && (
+      {hiddenZeroCount > 0 && (
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 mb-4 bg-slate-50/70 dark:bg-slate-800/70 text-sm text-slate-600 dark:text-slate-300">
+          {hiddenZeroCount} usuario{hiddenZeroCount === 1 ? "" : "s"} sin
+          actividad aún se ocultaron para que el ranking sea más útil.
+        </div>
+      )}
+
+      {visibleRanking.length > 0 && (
         <div className="md:hidden space-y-3 mb-4">
           {mobileRanking.map((row, index) => {
+            const placementBadge = getPlacementBadge(index);
             return (
               <article
                 key={`mobile-${row.username}-${index}`}
@@ -454,9 +486,20 @@ export default function RankingPanel({ refreshVersion = 0 }) {
                       <p className="text-xs text-slate-500 dark:text-slate-300 truncate">
                         @{row.username}
                       </p>
+                      {Number.isFinite(row.streak_current) &&
+                        row.streak_current > 0 && (
+                          <p className="text-[11px] text-slate-500 dark:text-slate-300 mt-0.5">
+                            Racha: {row.streak_current} d
+                          </p>
+                        )}
+                      {placementBadge && (
+                        <span className="mt-1 inline-flex rounded-full border border-slate-300/80 dark:border-slate-600 bg-white/70 dark:bg-slate-900/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                          {placementBadge}
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-1 text-center min-w-[140px]">
+                  <div className="grid grid-cols-2 gap-1 text-center min-w-35">
                     <div className="rounded-lg bg-white/70 dark:bg-slate-900/70 px-2 py-1">
                       <p className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-300">
                         Diario
@@ -467,6 +510,9 @@ export default function RankingPanel({ refreshVersion = 0 }) {
                         )}`}
                       >
                         {formatPercent(row.daily_completion)}
+                      </p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-300 capitalize">
+                        {getCompletionLevel(row.daily_completion)}
                       </p>
                     </div>
                     <div className="rounded-lg bg-white/70 dark:bg-slate-900/70 px-2 py-1">
@@ -480,6 +526,9 @@ export default function RankingPanel({ refreshVersion = 0 }) {
                       >
                         {formatPercent(row.weekly_completion)}
                       </p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-300 capitalize">
+                        {getCompletionLevel(row.weekly_completion)}
+                      </p>
                     </div>
                     <div className="rounded-lg bg-white/70 dark:bg-slate-900/70 px-2 py-1">
                       <p className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-300">
@@ -491,6 +540,9 @@ export default function RankingPanel({ refreshVersion = 0 }) {
                         )}`}
                       >
                         {formatPercent(row.monthly_completion)}
+                      </p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-300 capitalize">
+                        {getCompletionLevel(row.monthly_completion)}
                       </p>
                     </div>
                     <div className="rounded-lg bg-white/70 dark:bg-slate-900/70 px-2 py-1">
@@ -504,6 +556,9 @@ export default function RankingPanel({ refreshVersion = 0 }) {
                       >
                         {formatPercent(row.historical_completion)}
                       </p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-300 capitalize">
+                        {getCompletionLevel(row.historical_completion)}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -511,7 +566,7 @@ export default function RankingPanel({ refreshVersion = 0 }) {
             );
           })}
 
-          {ranking.length > 3 && (
+          {visibleRanking.length > 3 && (
             <button
               type="button"
               onClick={() => setShowAllMobileRanks((prev) => !prev)}
@@ -524,7 +579,7 @@ export default function RankingPanel({ refreshVersion = 0 }) {
       )}
 
       <div className="hidden md:block max-w-full overflow-x-auto">
-        <table className="w-full min-w-[680px] text-left border-separate border-spacing-y-2">
+        <table className="w-full min-w-170 text-left border-separate border-spacing-y-2">
           <thead>
             <tr className="text-slate-500 text-sm border-b border-slate-200 dark:border-slate-700">
               <th className="py-2 px-2 text-center">#</th>
@@ -536,61 +591,88 @@ export default function RankingPanel({ refreshVersion = 0 }) {
             </tr>
           </thead>
           <tbody>
-            {ranking.map((row, index) => (
-              <tr
-                key={`${row.username}-${index}`}
-                className={`border transition-colors hover:bg-slate-100/70 dark:hover:bg-slate-800/80 ${getRowStyle(index)}`}
-              >
-                <td className="py-3 px-2 pl-3">
-                  <span className="inline-flex items-center justify-center min-w-10 h-8 rounded-lg border border-slate-300/80 dark:border-slate-600 bg-white/80 dark:bg-slate-900/80 text-sm font-semibold">
-                    {getRankLabel(index)}
-                  </span>
-                </td>
-                <td className="py-3 px-2">
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={row.avatar_file_url || defaultAvatar}
-                      alt={row.display_name}
-                      className="w-10 h-10 rounded-full object-cover border border-slate-300 dark:border-slate-600"
-                    />
-                    <div>
-                      <p className="font-medium">{row.display_name}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-300">
-                        @{row.username}
-                      </p>
+            {visibleRanking.map((row, index) => {
+              const placementBadge = getPlacementBadge(index);
+
+              return (
+                <tr
+                  key={`${row.username}-${index}`}
+                  className={`border transition-colors hover:bg-slate-100/70 dark:hover:bg-slate-800/80 ${getRowStyle(index)}`}
+                >
+                  <td className="py-3 px-2 pl-3">
+                    <span className="inline-flex items-center justify-center min-w-10 h-8 rounded-lg border border-slate-300/80 dark:border-slate-600 bg-white/80 dark:bg-slate-900/80 text-sm font-semibold">
+                      {getRankLabel(index)}
+                    </span>
+                  </td>
+                  <td className="py-3 px-2">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={row.avatar_file_url || defaultAvatar}
+                        alt={row.display_name}
+                        className="w-10 h-10 rounded-full object-cover border border-slate-300 dark:border-slate-600"
+                      />
+                      <div>
+                        <p className="font-medium">{row.display_name}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-300">
+                          @{row.username}
+                        </p>
+                        {Number.isFinite(row.streak_current) &&
+                          row.streak_current > 0 && (
+                            <p className="text-[11px] text-slate-500 dark:text-slate-300 mt-0.5">
+                              Racha: {row.streak_current} d
+                            </p>
+                          )}
+                        {placementBadge && (
+                          <span className="mt-1 inline-flex rounded-full border border-slate-300/80 dark:border-slate-600 bg-white/70 dark:bg-slate-900/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                            {placementBadge}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </td>
-                <td className="py-3 px-2 text-center">
-                  <span
-                    className={`inline-flex min-w-20 items-center justify-center rounded-lg border px-2.5 py-1 text-sm font-semibold shadow-xs ${getMetricChipClass(row.daily_completion)} ${getCompletionTailwindClass(row.daily_completion)}`}
-                  >
-                    {formatPercent(row.daily_completion)}
-                  </span>
-                </td>
-                <td className="py-3 px-2 text-center">
-                  <span
-                    className={`inline-flex min-w-20 items-center justify-center rounded-lg border px-2.5 py-1 text-sm font-semibold shadow-xs ${getMetricChipClass(row.weekly_completion)} ${getCompletionTailwindClass(row.weekly_completion)}`}
-                  >
-                    {formatPercent(row.weekly_completion)}
-                  </span>
-                </td>
-                <td className="py-3 px-2 pr-3 text-center">
-                  <span
-                    className={`inline-flex min-w-20 items-center justify-center rounded-lg border px-2.5 py-1 text-sm font-semibold shadow-xs ${getMetricChipClass(row.monthly_completion)} ${getCompletionTailwindClass(row.monthly_completion)}`}
-                  >
-                    {formatPercent(row.monthly_completion)}
-                  </span>
-                </td>
-                <td className="py-3 px-2 pr-3 text-center">
-                  <span
-                    className={`inline-flex min-w-20 items-center justify-center rounded-lg border px-2.5 py-1 text-sm font-semibold shadow-xs ${getMetricChipClass(row.historical_completion)} ${getCompletionTailwindClass(row.historical_completion)}`}
-                  >
-                    {formatPercent(row.historical_completion)}
-                  </span>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="py-3 px-2 text-center">
+                    <span
+                      className={`inline-flex min-w-20 flex-col items-center justify-center rounded-lg border px-2.5 py-1 text-sm font-semibold shadow-xs ${getMetricChipClass(row.daily_completion)} ${getCompletionTailwindClass(row.daily_completion)}`}
+                    >
+                      {formatPercent(row.daily_completion)}
+                      <span className="text-[10px] capitalize text-slate-500 dark:text-slate-300">
+                        {getCompletionLevel(row.daily_completion)}
+                      </span>
+                    </span>
+                  </td>
+                  <td className="py-3 px-2 text-center">
+                    <span
+                      className={`inline-flex min-w-20 flex-col items-center justify-center rounded-lg border px-2.5 py-1 text-sm font-semibold shadow-xs ${getMetricChipClass(row.weekly_completion)} ${getCompletionTailwindClass(row.weekly_completion)}`}
+                    >
+                      {formatPercent(row.weekly_completion)}
+                      <span className="text-[10px] capitalize text-slate-500 dark:text-slate-300">
+                        {getCompletionLevel(row.weekly_completion)}
+                      </span>
+                    </span>
+                  </td>
+                  <td className="py-3 px-2 pr-3 text-center">
+                    <span
+                      className={`inline-flex min-w-20 flex-col items-center justify-center rounded-lg border px-2.5 py-1 text-sm font-semibold shadow-xs ${getMetricChipClass(row.monthly_completion)} ${getCompletionTailwindClass(row.monthly_completion)}`}
+                    >
+                      {formatPercent(row.monthly_completion)}
+                      <span className="text-[10px] capitalize text-slate-500 dark:text-slate-300">
+                        {getCompletionLevel(row.monthly_completion)}
+                      </span>
+                    </span>
+                  </td>
+                  <td className="py-3 px-2 pr-3 text-center">
+                    <span
+                      className={`inline-flex min-w-20 flex-col items-center justify-center rounded-lg border px-2.5 py-1 text-sm font-semibold shadow-xs ${getMetricChipClass(row.historical_completion)} ${getCompletionTailwindClass(row.historical_completion)}`}
+                    >
+                      {formatPercent(row.historical_completion)}
+                      <span className="text-[10px] capitalize text-slate-500 dark:text-slate-300">
+                        {getCompletionLevel(row.historical_completion)}
+                      </span>
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

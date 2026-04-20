@@ -1,4 +1,9 @@
-import { formatPercent, getCompletionColor } from "../utils/completion";
+import {
+  formatPercent,
+  getCompletionColor,
+  getCompletionLevel,
+  getCompletionLevelHint,
+} from "../utils/completion";
 import CardHeader from "./CardHeader";
 
 export default function CompletionRing({ value, title, subtitle }) {
@@ -11,6 +16,8 @@ export default function CompletionRing({ value, title, subtitle }) {
   const circumference = 2 * Math.PI * normalizedRadius;
   const dashOffset = circumference - (clamped / 100) * circumference;
   const strokeColor = hasValue ? getCompletionColor(value) : "#cbd5e1";
+  const level = getCompletionLevel(value);
+  const levelHint = getCompletionLevelHint(value);
 
   return (
     <div className="h-full rounded-xl border border-slate-200 dark:border-slate-700 p-4 bg-white dark:bg-slate-800/70 flex flex-col">
@@ -55,6 +62,9 @@ export default function CompletionRing({ value, title, subtitle }) {
 
       <p className="text-xs text-slate-500 mt-3 text-center min-h-8">
         {subtitle}
+      </p>
+      <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300 text-center mt-1">
+        {level} · {levelHint}
       </p>
     </div>
   );
