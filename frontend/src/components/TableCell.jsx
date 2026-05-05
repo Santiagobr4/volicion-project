@@ -1,22 +1,13 @@
 import { getSymbol, getStatusStyle } from "../utils/habitHelpers";
 
-/**
- * Interactive status cell for the weekly tracker table.
- *
- * Props:
- * - status: current status string for the day.
- * - onClick: callback to rotate status.
- */
 export default function TableCell({ status, onClick, isFuture = false }) {
   if (isFuture) {
     return (
       <div
-        className="w-10 h-9 sm:w-12 sm:h-10 rounded-lg flex items-center justify-center border border-dashed border-slate-300 bg-slate-100/80 text-slate-400 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-500"
+        className="w-10 h-9 sm:w-12 sm:h-10 rounded-[8px] day-cell-future border border-dashed border-ink/15"
         aria-label="Día futuro"
         title="Día futuro"
-      >
-        <span className="text-sm sm:text-base">—</span>
-      </div>
+      />
     );
   }
 
@@ -38,10 +29,10 @@ export default function TableCell({ status, onClick, isFuture = false }) {
           ? "Día no aplicable"
           : `Actualizar estado: ${statusLabel[status] || status}`
       }
-      className={`w-10 h-9 sm:w-12 sm:h-10 rounded-lg flex items-center justify-center text-sm sm:text-base shadow-sm transition-[transform,background-color,color,box-shadow] duration-200 ease-out focus:outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-600 ${
+      className={`w-10 h-9 sm:w-12 sm:h-10 rounded-[8px] flex items-center justify-center text-sm font-mono transition-[transform,opacity] duration-200 focus:outline-none focus:ring-2 focus:ring-ink/20 ${
         isDisabled
-          ? "cursor-not-allowed opacity-80"
-          : "cursor-pointer hover:scale-[1.01] active:scale-[0.985]"
+          ? "cursor-not-allowed"
+          : "cursor-pointer hover:opacity-75 active:scale-95"
       } ${getStatusStyle(status)}`}
     >
       {getSymbol(status)}

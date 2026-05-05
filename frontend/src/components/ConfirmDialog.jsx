@@ -10,20 +10,17 @@ export default function ConfirmDialog({ open, onClose, onConfirm, text }) {
   return (
     <div className={modalBackdropClassName}>
       <div className={`${modalPanelClassName} max-w-sm p-5 sm:p-6`}>
-        <h2 className="text-lg font-semibold">Confirmar acción</h2>
-        <p className="text-sm text-slate-500 dark:text-slate-300 mt-2">
-          {text}
-        </p>
+        <h2 className="font-serif text-[28px] leading-tight">Confirmar acción</h2>
+        <p className="text-sm text-ink-3 mt-2">{text}</p>
 
         <div className="mt-5 flex justify-end gap-2">
           <button
             type="button"
             onClick={onClose}
-            className={buttonClassName({ variant: "secondary", size: "sm" })}
+            className={buttonClassName({ variant: "ghost", size: "sm" })}
           >
             Cancelar
           </button>
-
           <button
             type="button"
             onClick={onConfirm}

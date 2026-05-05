@@ -2,19 +2,10 @@ export const formatPercent = (value) =>
   value === null || value === undefined ? "N/D" : `${value}%`;
 
 export const getCompletionColor = (value) => {
-  if (value === null || value === undefined) {
-    return "#94a3b8";
-  }
-
-  if (value >= 80) {
-    return "#16a34a";
-  }
-
-  if (value >= 50) {
-    return "#eab308";
-  }
-
-  return "#dc2626";
+  if (value === null || value === undefined) return "var(--ink-4)";
+  if (value >= 80) return "var(--lime)";
+  if (value >= 50) return "var(--gold)";
+  return "var(--signal)";
 };
 
 export const getCompletionTailwindClass = (value) => {

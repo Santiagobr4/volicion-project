@@ -45,20 +45,14 @@ export default function HabitModal({ open, onClose, onSubmit, initialData }) {
         : [...latestDaysRef.current, day],
     );
     latestDaysRef.current = nextDays;
-    setHabit((prev) => ({
-      ...prev,
-      days: nextDays,
-    }));
+    setHabit((prev) => ({ ...prev, days: nextDays }));
   };
 
   const toggleAllDays = () => {
     setFormError("");
     const nextDays = allDaysSelected ? [] : [...WEEK_DAYS];
     latestDaysRef.current = nextDays;
-    setHabit((prev) => ({
-      ...prev,
-      days: nextDays,
-    }));
+    setHabit((prev) => ({ ...prev, days: nextDays }));
   };
 
   const handleSubmit = async () => {
@@ -76,11 +70,7 @@ export default function HabitModal({ open, onClose, onSubmit, initialData }) {
 
     const payload = initialData
       ? { days: daysToSave }
-      : {
-          ...habit,
-          days: daysToSave,
-          name: habit.name.trim(),
-        };
+      : { ...habit, days: daysToSave, name: habit.name.trim() };
 
     const response = await onSubmit(payload);
 
@@ -100,16 +90,15 @@ export default function HabitModal({ open, onClose, onSubmit, initialData }) {
   return (
     <div className={modalBackdropClassName}>
       <div className={`${modalPanelClassName} max-w-md p-5 sm:p-6`}>
-        <h2 className="text-xl font-semibold mb-1">
+        <h2 className="font-serif text-[28px] leading-tight mb-1">
           {initialData ? "Editar hábito" : "Crear hábito"}
         </h2>
-        <p className="text-sm text-slate-500 dark:text-slate-300 mb-5">
+        <p className="text-sm text-ink-3 mb-5">
           Define los días en los que se seguirá este hábito.
         </p>
         {!initialData && (
-          <p className="text-sm text-amber-700 dark:text-amber-300 mb-4 rounded-lg border border-amber-200/80 dark:border-amber-700/60 bg-amber-50/80 dark:bg-amber-950/30 px-3 py-2">
-            Los hábitos nuevos empiezan a contar desde el lunes de la próxima
-            semana.
+          <p className="text-sm text-ink-2 mb-4 rounded-[10px] border border-gold/25 bg-gold/8 px-3 py-2">
+            Los hábitos nuevos empiezan a contar desde el lunes de la próxima semana.
           </p>
         )}
 
@@ -119,17 +108,11 @@ export default function HabitModal({ open, onClose, onSubmit, initialData }) {
           className={`${inputClassName} mb-1`}
           value={habit.name}
           disabled={!!initialData}
-          onChange={(e) =>
-            setHabit((prev) => ({
-              ...prev,
-              name: e.target.value,
-            }))
-          }
+          onChange={(e) => setHabit((prev) => ({ ...prev, name: e.target.value }))}
         />
         {initialData && (
-          <p className="text-xs text-slate-500 dark:text-slate-300 mb-4">
-            El nombre del hábito no se puede editar. Solo puedes cambiar los
-            días.
+          <p className="text-xs text-ink-4 mb-4">
+            El nombre del hábito no se puede editar. Solo puedes cambiar los días.
           </p>
         )}
 
@@ -163,17 +146,16 @@ export default function HabitModal({ open, onClose, onSubmit, initialData }) {
           ))}
         </div>
 
-        {formError && <p className="text-sm text-red-500 mb-4">{formError}</p>}
+        {formError && <p className="text-sm text-signal mb-4">{formError}</p>}
 
         <div className="flex justify-end gap-2">
           <button
             type="button"
             onClick={onClose}
-            className={buttonClassName({ variant: "secondary", size: "sm" })}
+            className={buttonClassName({ variant: "ghost", size: "sm" })}
           >
             Cancelar
           </button>
-
           <button
             type="button"
             onClick={handleSubmit}

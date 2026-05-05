@@ -5,407 +5,312 @@ import {
   register,
   requestPasswordResetByEmail,
 } from "../api/auth";
-import {
-  buttonClassName,
-  helpTextClassName,
-  inputClassName,
-  labelClassName,
-  panelShellClassName,
-  segmentedButtonClassName,
-} from "./ui.js";
+import { buttonClassName, inputClassName, labelClassName } from "./ui.js";
 
-const defaultLogin = {
-  username: "",
-  password: "",
-};
-
-const defaultRegister = {
-  username: "",
-  email: "",
-  password: "",
-};
+const defaultLogin    = { username: "", password: "" };
+const defaultRegister = { username: "", email: "", password: "" };
 
 export default function AuthPanel({ onAuthenticated }) {
-  const [mode, setMode] = useState("login");
-  const [loginForm, setLoginForm] = useState(defaultLogin);
-  const [registerForm, setRegisterForm] = useState(defaultRegister);
-  const [showLoginPassword, setShowLoginPassword] = useState(false);
-  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [forgotEmail, setForgotEmail] = useState("");
+  const [mode, setMode]                         = useState("login");
+  const [loginForm, setLoginForm]               = useState(defaultLogin);
+  const [registerForm, setRegisterForm]         = useState(defaultRegister);
+  const [showLoginPwd, setShowLoginPwd]         = useState(false);
+  const [showRegisterPwd, setShowRegisterPwd]   = useState(false);
+  const [submitting, setSubmitting]             = useState(false);
+  const [error, setError]                       = useState("");
+  const [showForgot, setShowForgot]             = useState(false);
+  const [forgotEmail, setForgotEmail]           = useState("");
   const [forgotSubmitting, setForgotSubmitting] = useState(false);
-  const [forgotMessage, setForgotMessage] = useState("");
-  const [forgotError, setForgotError] = useState("");
+  const [forgotMessage, setForgotMessage]       = useState("");
+  const [forgotError, setForgotError]           = useState("");
 
-  const metrics = [
-    { label: "Diario", value: "Enfoque" },
-    { label: "Semanal", value: "Ritmo" },
-    { label: "Mensual", value: "Progreso" },
-  ];
+  const switchMode = (next) => {
+    setMode(next);
+    setError("");
+    setShowForgot(false);
+    setForgotError("");
+    setForgotMessage("");
+  };
 
-  const heroContent = (
-    <>
-      <div>
-        <p className="text-xs uppercase tracking-[0.22em] text-slate-300">
-          VOLICION
-        </p>
-        <h2 className="mt-4 text-3xl md:text-4xl font-semibold leading-tight">
-          Convierte intención en acción.
-        </h2>
-        <p className="mt-4 text-slate-200/90 max-w-xl">
-          Construye hábitos, mantén la disciplina y logra tus objetivos.
-        </p>
-      </div>
-
-      <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {metrics.map((metric) => (
-          <div
-            key={metric.label}
-            className="rounded-xl border border-white/20 bg-white/10 p-3"
-          >
-            <p className="text-lg font-semibold">{metric.label}</p>
-            <p className="text-xs text-slate-300 mt-1">{metric.value}</p>
-          </div>
-        ))}
-      </div>
-    </>
-  );
-
-  const onLogin = async (event) => {
-    event.preventDefault();
+  const onLogin = async (e) => {
+    e.preventDefault();
     setSubmitting(true);
     setError("");
-
     try {
       await login(loginForm);
       onAuthenticated();
       setLoginForm(defaultLogin);
-    } catch (error) {
-      setError(
-        getApiErrorMessage(
-          error,
-          "No pudimos iniciar sesión. Intenta de nuevo.",
-        ),
-      );
+    } catch (err) {
+      setError(getApiErrorMessage(err, "No pudimos iniciar sesión. Intenta de nuevo."));
     } finally {
       setSubmitting(false);
     }
   };
 
-  const onRegister = async (event) => {
-    event.preventDefault();
+  const onRegister = async (e) => {
+    e.preventDefault();
     setSubmitting(true);
     setError("");
-
     try {
       await register(registerForm);
-      await login({
-        username: registerForm.username,
-        password: registerForm.password,
-      });
+      await login({ username: registerForm.username, password: registerForm.password });
       onAuthenticated();
       setRegisterForm(defaultRegister);
-    } catch (error) {
-      setError(
-        getApiErrorMessage(
-          error,
-          "No pudimos crear tu cuenta. Revisa los datos e intenta otra vez.",
-        ),
-      );
+    } catch (err) {
+      setError(getApiErrorMessage(err, "No pudimos crear tu cuenta. Revisa los datos e intenta otra vez."));
     } finally {
       setSubmitting(false);
     }
   };
 
-  const onForgotPassword = async (event) => {
-    event.preventDefault();
-
+  const onForgotPassword = async (e) => {
+    e.preventDefault();
     if (forgotSubmitting) return;
-
     setForgotSubmitting(true);
     setForgotError("");
     setForgotMessage("");
-
     try {
-      const response = await requestPasswordResetByEmail(forgotEmail);
-      setForgotMessage(
-        response?.detail ||
-          "Si existe una cuenta con ese correo, recibirás un enlace de recuperación.",
-      );
-    } catch (forgotRequestError) {
-      setForgotError(
-        getApiErrorMessage(
-          forgotRequestError,
-          "No pudimos procesar la solicitud en este momento.",
-        ),
-      );
+      const res = await requestPasswordResetByEmail(forgotEmail);
+      setForgotMessage(res?.detail || "Si existe una cuenta con ese correo, recibirás un enlace de recuperación.");
+    } catch (err) {
+      setForgotError(getApiErrorMessage(err, "No pudimos procesar la solicitud en este momento."));
     } finally {
       setForgotSubmitting(false);
     }
   };
 
   return (
-    <div className={`${panelShellClassName} max-w-5xl mx-auto overflow-hidden`}>
-      <div className="grid lg:grid-cols-2 lg:items-stretch">
-        <div className="relative hidden lg:flex flex-col h-full min-h-140 p-8 bg-linear-to-br from-slate-900 to-slate-700 text-white">
-          <div className="flex h-full flex-col justify-between">
-            {heroContent}
+    <div className="max-w-[1240px] mx-auto px-4 sm:px-8">
+      {/* Page header */}
+      <div className="pt-14 pb-0 mb-12">
+        <span className="font-mono text-[11px] tracking-[0.12em] uppercase text-ink-3">
+          Manifiesto · 01
+        </span>
+        <h1 className="font-serif font-normal text-[clamp(40px,6vw,72px)] leading-[0.98] tracking-[-0.025em] mt-3 mb-4">
+          Convierte intención<br />
+          <em className="italic text-ink-3">en acción.</em>
+        </h1>
+        <p className="text-lg text-ink-2 max-w-[560px] leading-relaxed">
+          Un cuaderno digital para construir hábitos, mantener la disciplina y avanzar día tras día — sin distracciones, sin gamificación vacía.
+        </p>
+      </div>
+
+      {/* Split layout */}
+      <div className="grid lg:grid-cols-[1.1fr_1fr] min-h-[620px] border border-ink/10 rounded-[24px] overflow-hidden bg-paper-2 mb-16">
+
+        {/* Left — dark manifesto panel */}
+        <div className="relative hidden lg:flex flex-col justify-between p-14 bg-[#161513] text-[#FAFAF7] overflow-hidden">
+          {/* Lime glow */}
+          <div
+            className="absolute -top-[200px] -right-[200px] w-[700px] h-[700px] rounded-full pointer-events-none"
+            style={{ background: "radial-gradient(circle at center, rgba(200,240,80,0.18), transparent 60%)" }}
+          />
+
+          <div className="relative z-10">
+            <span className="font-mono text-[11px] tracking-[0.12em] uppercase" style={{ color: "rgba(242,237,226,0.55)" }}>
+              Volición · sustantivo
+            </span>
+            <p className="font-serif text-[28px] leading-[1.25] mt-5 max-w-[420px]">
+              <em>"El acto de la voluntad por el cual se decide hacer algo. La fuerza con que se ejecuta."</em>
+            </p>
+          </div>
+
+          <div className="relative z-10 grid grid-cols-3 gap-4 pt-8 border-t" style={{ borderColor: "rgba(242,237,226,0.12)" }}>
+            {[
+              { eyebrow: "Diario",   num: "01", label: "Hoy importa." },
+              { eyebrow: "Semanal",  num: "07", label: "El ritmo." },
+              { eyebrow: "Mensual",  num: "30", label: "El cambio." },
+            ].map(({ eyebrow, num, label }) => (
+              <div key={num}>
+                <span className="font-mono text-[11px] tracking-[0.12em] uppercase" style={{ color: "rgba(242,237,226,0.5)" }}>
+                  {eyebrow}
+                </span>
+                <div className="font-serif text-[36px] leading-none mt-2 mb-1 text-[#FAFAF7]">{num}</div>
+                <div className="text-xs" style={{ color: "rgba(242,237,226,0.7)" }}>{label}</div>
+              </div>
+            ))}
           </div>
         </div>
 
-        <div className="p-6 md:p-8">
-          <div className="lg:hidden mb-5 rounded-3xl overflow-hidden border border-slate-200/80 dark:border-slate-700 bg-linear-to-br from-slate-900 to-slate-700 text-white p-5 shadow-sm">
-            {heroContent}
-          </div>
+        {/* Right — form panel */}
+        <div className="flex flex-col justify-center p-8 sm:p-14 bg-paper">
 
-          <div className="inline-flex rounded-xl border border-slate-300 dark:border-slate-600 p-1 bg-slate-100/80 dark:bg-slate-800/80 mb-6 transition-all duration-300 ease-out">
+          {/* Toggle */}
+          <div className="inline-flex self-start bg-paper-2 border border-ink/10 rounded-full p-1 mb-8">
             <button
               type="button"
-              onClick={() => {
-                setMode("login");
-                setError("");
-                setForgotError("");
-                setForgotMessage("");
-              }}
-              className={segmentedButtonClassName(mode === "login")}
+              onClick={() => switchMode("login")}
+              className={[
+                "px-5 py-2.5 rounded-full text-sm font-medium cursor-pointer transition-all",
+                mode === "login" ? "bg-ink text-paper" : "bg-transparent text-ink-3 hover:text-ink",
+              ].join(" ")}
             >
               Iniciar sesión
             </button>
-
             <button
               type="button"
-              onClick={() => {
-                setMode("register");
-                setError("");
-                setShowForgotPassword(false);
-                setForgotError("");
-                setForgotMessage("");
-              }}
-              className={segmentedButtonClassName(mode === "register")}
+              onClick={() => switchMode("register")}
+              className={[
+                "px-5 py-2.5 rounded-full text-sm font-medium cursor-pointer transition-all",
+                mode === "register" ? "bg-ink text-paper" : "bg-transparent text-ink-3 hover:text-ink",
+              ].join(" ")}
             >
               Crear cuenta
             </button>
           </div>
 
-          <div
-            key={mode}
-            className="fade-in motion-safe:transition-all motion-safe:duration-300 motion-safe:ease-out"
-          >
-            <h3 className="text-2xl font-semibold tracking-tight mb-1">
-              {mode === "login" ? "Bienvenido" : "Crea tu cuenta"}
-            </h3>
-            <p className={helpTextClassName + " mb-6"}>
-              {mode === "login"
-                ? "Inicia sesión para continuar."
-                : "Empieza hoy."}
+          <div key={mode} className="page-fade">
+            <h2 className="font-serif text-[44px] leading-none tracking-[-0.02em] mb-1">
+              {mode === "login" ? "Bienvenido." : "Empieza hoy."}
+            </h2>
+            <p className="text-ink-3 mt-2 mb-8">
+              {mode === "login" ? "Continúa donde lo dejaste." : "Una decisión cada día."}
             </p>
 
             {mode === "login" ? (
-              <form onSubmit={onLogin} className="space-y-4">
-                <div>
-                  <label className={`${labelClassName} mb-1`}>Usuario</label>
+              <form onSubmit={onLogin} className="flex flex-col gap-6">
+                <div className="flex flex-col gap-2">
+                  <label className={labelClassName}>Usuario</label>
                   <input
                     type="text"
-                    placeholder="Ej. santi"
+                    placeholder="tu_nombre"
                     required
                     value={loginForm.username}
-                    onChange={(event) =>
-                      setLoginForm((prev) => ({
-                        ...prev,
-                        username: event.target.value,
-                      }))
-                    }
+                    onChange={(e) => setLoginForm((p) => ({ ...p, username: e.target.value }))}
                     className={inputClassName}
                   />
                 </div>
 
-                <div>
-                  <label className={`${labelClassName} mb-1`}>Contraseña</label>
+                <div className="flex flex-col gap-2">
+                  <label className={labelClassName}>Contraseña</label>
                   <div className="relative">
                     <input
-                      type={showLoginPassword ? "text" : "password"}
-                      placeholder="Tu contraseña"
+                      type={showLoginPwd ? "text" : "password"}
+                      placeholder="••••••••"
                       required
                       value={loginForm.password}
-                      onChange={(event) =>
-                        setLoginForm((prev) => ({
-                          ...prev,
-                          password: event.target.value,
-                        }))
-                      }
-                      className={`${inputClassName} pr-20`}
+                      onChange={(e) => setLoginForm((p) => ({ ...p, password: e.target.value }))}
+                      className={inputClassName + " pr-20"}
                     />
                     <button
                       type="button"
-                      onClick={() => setShowLoginPassword((prev) => !prev)}
-                      className={
-                        buttonClassName({ variant: "secondary", size: "sm" }) +
-                        " absolute right-2 top-1/2 -translate-y-1/2"
-                      }
+                      onClick={() => setShowLoginPwd((p) => !p)}
+                      className="absolute right-0 top-3 font-mono text-[11px] tracking-[0.08em] uppercase text-ink-3 bg-transparent border-0 cursor-pointer hover:text-ink transition-colors"
                     >
-                      {showLoginPassword ? "Ocultar" : "Mostrar"}
+                      {showLoginPwd ? "Ocultar" : "Mostrar"}
                     </button>
                   </div>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className={buttonClassName({
-                    variant: "primary",
-                    fullWidth: true,
-                  })}
-                  aria-busy={submitting}
-                >
-                  {submitting ? "Iniciando sesión..." : "Iniciar sesión"}
-                </button>
-
-                <div className="pt-1">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      setShowForgotPassword((prev) => !prev);
-                      setForgotError("");
-                      setForgotMessage("");
-                    }}
-                    className="text-sm text-slate-600 dark:text-slate-300 underline underline-offset-2 hover:text-slate-900 dark:hover:text-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-600 rounded-md"
+                    onClick={() => { setShowForgot((p) => !p); setForgotError(""); setForgotMessage(""); }}
+                    className="font-mono text-[12px] tracking-[0.06em] text-ink-3 hover:text-ink transition-colors text-left"
                   >
-                    {showForgotPassword
-                      ? "Ocultar recuperación"
-                      : "¿Olvidaste tu contraseña?"}
+                    ¿Olvidaste tu contraseña?
                   </button>
-
-                  {showForgotPassword && (
-                    <div className="mt-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/50 p-3 space-y-3">
-                      <label className={labelClassName}>
-                        Correo de tu cuenta
-                      </label>
-                      <input
-                        type="email"
-                        required
-                        value={forgotEmail}
-                        onChange={(event) => setForgotEmail(event.target.value)}
-                        placeholder="you@example.com"
-                        className={inputClassName}
-                      />
-                      <button
-                        type="button"
-                        onClick={onForgotPassword}
-                        disabled={forgotSubmitting}
-                        className={
-                          buttonClassName({
-                            variant: "secondary",
-                            fullWidth: true,
-                          }) + " sm:w-auto"
-                        }
-                        aria-busy={forgotSubmitting}
-                      >
-                        {forgotSubmitting
-                          ? "Enviando..."
-                          : "Enviar enlace de recuperación"}
-                      </button>
-
-                      {forgotError && (
-                        <p className="text-sm text-red-500">{forgotError}</p>
-                      )}
-                      {forgotMessage && (
-                        <p className="text-sm text-emerald-600 dark:text-emerald-400">
-                          {forgotMessage}
-                        </p>
-                      )}
-                    </div>
-                  )}
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className={buttonClassName({ variant: "primary" })}
+                    aria-busy={submitting}
+                  >
+                    {submitting ? "Iniciando..." : <>Entrar <em className="font-serif not-italic">→</em></>}
+                  </button>
                 </div>
+
+                {showForgot && (
+                  <div className="rounded-[14px] border border-ink/10 bg-paper-2 p-4 flex flex-col gap-3">
+                    <label className={labelClassName}>Correo de tu cuenta</label>
+                    <input
+                      type="email"
+                      required
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      placeholder="tu@correo.com"
+                      className={inputClassName}
+                    />
+                    <button
+                      type="button"
+                      onClick={onForgotPassword}
+                      disabled={forgotSubmitting}
+                      className={buttonClassName({ variant: "ghost", size: "sm" })}
+                      aria-busy={forgotSubmitting}
+                    >
+                      {forgotSubmitting ? "Enviando..." : "Enviar enlace de recuperación"}
+                    </button>
+                    {forgotError   && <p className="text-sm text-signal">{forgotError}</p>}
+                    {forgotMessage && <p className="text-sm text-lime-ink">{forgotMessage}</p>}
+                  </div>
+                )}
               </form>
             ) : (
-              <form onSubmit={onRegister} className="space-y-4">
-                <div>
-                  <label className={`${labelClassName} mb-1`}>Usuario</label>
+              <form onSubmit={onRegister} className="flex flex-col gap-6">
+                <div className="flex flex-col gap-2">
+                  <label className={labelClassName}>Usuario</label>
                   <input
                     type="text"
-                    placeholder="Elige un usuario"
+                    placeholder="elige_un_nombre"
                     required
                     value={registerForm.username}
-                    onChange={(event) =>
-                      setRegisterForm((prev) => ({
-                        ...prev,
-                        username: event.target.value,
-                      }))
-                    }
+                    onChange={(e) => setRegisterForm((p) => ({ ...p, username: e.target.value }))}
                     className={inputClassName}
                   />
                 </div>
 
-                <div>
-                  <label className={`${labelClassName} mb-1`}>
-                    Correo electrónico
-                  </label>
+                <div className="flex flex-col gap-2">
+                  <label className={labelClassName}>Correo electrónico</label>
                   <input
                     type="email"
-                    placeholder="you@example.com"
+                    placeholder="tu@correo.com"
                     required
                     value={registerForm.email}
-                    onChange={(event) =>
-                      setRegisterForm((prev) => ({
-                        ...prev,
-                        email: event.target.value,
-                      }))
-                    }
+                    onChange={(e) => setRegisterForm((p) => ({ ...p, email: e.target.value }))}
                     className={inputClassName}
                   />
                 </div>
 
-                <div>
-                  <label className={`${labelClassName} mb-1`}>Contraseña</label>
+                <div className="flex flex-col gap-2">
+                  <label className={labelClassName}>Contraseña</label>
                   <div className="relative">
                     <input
-                      type={showRegisterPassword ? "text" : "password"}
+                      type={showRegisterPwd ? "text" : "password"}
                       placeholder="Mínimo 8 caracteres"
                       required
                       minLength={8}
                       value={registerForm.password}
-                      onChange={(event) =>
-                        setRegisterForm((prev) => ({
-                          ...prev,
-                          password: event.target.value,
-                        }))
-                      }
-                      className={`${inputClassName} pr-20`}
+                      onChange={(e) => setRegisterForm((p) => ({ ...p, password: e.target.value }))}
+                      className={inputClassName + " pr-20"}
                     />
                     <button
                       type="button"
-                      onClick={() => setShowRegisterPassword((prev) => !prev)}
-                      className={
-                        buttonClassName({ variant: "secondary", size: "sm" }) +
-                        " absolute right-2 top-1/2 -translate-y-1/2"
-                      }
+                      onClick={() => setShowRegisterPwd((p) => !p)}
+                      className="absolute right-0 top-3 font-mono text-[11px] tracking-[0.08em] uppercase text-ink-3 bg-transparent border-0 cursor-pointer hover:text-ink transition-colors"
                     >
-                      {showRegisterPassword ? "Ocultar" : "Mostrar"}
+                      {showRegisterPwd ? "Ocultar" : "Mostrar"}
                     </button>
                   </div>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className={buttonClassName({
-                    variant: "primary",
-                    fullWidth: true,
-                  })}
-                  aria-busy={submitting}
-                >
-                  {submitting ? "Creando cuenta..." : "Crear cuenta"}
-                </button>
+                <div className="mt-2">
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className={buttonClassName({ variant: "primary" })}
+                    aria-busy={submitting}
+                  >
+                    {submitting ? "Creando cuenta..." : <>Crear cuenta <em className="font-serif not-italic">→</em></>}
+                  </button>
+                </div>
               </form>
             )}
           </div>
 
           {error && (
-            <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300">
+            <div className="mt-6 rounded-[14px] border border-signal/25 bg-signal-soft px-4 py-3 text-sm text-signal">
               {error}
-            </p>
+            </div>
           )}
         </div>
       </div>

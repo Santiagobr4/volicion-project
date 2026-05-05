@@ -5,8 +5,8 @@ describe("habitHelpers", () => {
   it("maps statuses to symbols", () => {
     expect(getSymbol("done")).toBe("✔");
     expect(getSymbol("missed")).toBe("✖");
-    expect(getSymbol("skip")).toBe("-");
-    expect(getSymbol("pending")).toBe("⏳");
+    expect(getSymbol("skip")).toBe("—");
+    expect(getSymbol("pending")).toBe("·");
   });
 
   it("maps completion rate to color style", () => {
@@ -16,9 +16,9 @@ describe("habitHelpers", () => {
   });
 
   it("maps status to chip styles", () => {
-    expect(getStatusStyle("done")).toContain("bg-green-500");
-    expect(getStatusStyle("missed")).toContain("bg-red-500");
-    expect(getStatusStyle("skip")).toContain("bg-slate-300");
-    expect(getStatusStyle("pending")).toContain("bg-slate-200");
+    expect(getStatusStyle("done")).toContain("bg-ink");
+    expect(getStatusStyle("missed")).toContain("bg-signal-soft");
+    expect(getStatusStyle("skip")).toContain("bg-paper-3");
+    expect(getStatusStyle("pending")).toContain("bg-paper-2");
   });
 });

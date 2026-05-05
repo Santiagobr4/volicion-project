@@ -1,34 +1,104 @@
 @import "tailwindcss";
 
-/* Enable manual dark mode switching. */
+/* Design tokens — auto-swap in dark mode */
+:root {
+  --paper:       #FAFAF7;
+  --paper-2:     #F2F1EC;
+  --paper-3:     #E6E4DC;
+  --ink:         #161513;
+  --ink-2:       #36332E;
+  --ink-3:       #66625A;
+  --ink-4:       #9A968D;
+  --lime:        #C8F050;
+  --lime-ink:    #2A3500;
+  --signal:      #E0432A;
+  --signal-soft: #FBE4DE;
+  --gold:        #D4A53A;
+}
+
+.dark {
+  --paper:       #14130F;
+  --paper-2:     #1C1B16;
+  --paper-3:     #25241D;
+  --ink:         #F2EDE2;
+  --ink-2:       #C8C2B5;
+  --ink-3:       #8E887C;
+  --ink-4:       #5C574E;
+  --signal-soft: rgba(224, 67, 42, 0.16);
+}
+
+/* Map tokens to Tailwind color/font utilities */
+@theme inline {
+  --color-paper:       var(--paper);
+  --color-paper-2:     var(--paper-2);
+  --color-paper-3:     var(--paper-3);
+  --color-ink:         var(--ink);
+  --color-ink-2:       var(--ink-2);
+  --color-ink-3:       var(--ink-3);
+  --color-ink-4:       var(--ink-4);
+  --color-lime:        var(--lime);
+  --color-lime-ink:    var(--lime-ink);
+  --color-signal:      var(--signal);
+  --color-signal-soft: var(--signal-soft);
+  --color-gold:        var(--gold);
+
+  --font-family-serif: "Instrument Serif", Georgia, serif;
+  --font-family-sans:  "Geist", system-ui, sans-serif;
+  --font-family-mono:  "JetBrains Mono", ui-monospace, monospace;
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
-html {
-  color-scheme: light dark;
+html, body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Geist", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "ss01", "cv11";
 }
 
-body {
-  background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
-  color: #0f172a;
-  letter-spacing: 0.01em;
-}
+::selection { background: var(--lime); color: var(--lime-ink); }
 
-.dark body {
-  background: linear-gradient(180deg, #020617 0%, #0f172a 100%);
-  color: #f8fafc;
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--paper); }
+::-webkit-scrollbar-thumb { background: var(--paper-3); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-4); }
+
+/* Hatch pattern for future day-cells */
+.day-cell-future {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 4px,
+    rgba(22,21,19,0.10) 4px,
+    rgba(22,21,19,0.10) 5px
+  );
+}
+.dark .day-cell-future {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 4px,
+    rgba(242,237,226,0.10) 4px,
+    rgba(242,237,226,0.10) 5px
+  );
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
+.page-fade { animation: fadeIn 320ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 
-.fade-in {
-  animation: fadeIn 180ms ease-out;
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
+.fade-up { animation: fadeUp 500ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+@keyframes dayCellPulse {
+  0%   { opacity: 0.6; transform: scale(1.2); }
+  100% { opacity: 0.18; transform: scale(1); }
+}
+.day-cell-pulse { animation: dayCellPulse 600ms ease-out; }

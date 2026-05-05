@@ -1,12 +1,9 @@
 export default function CardHeader({ title, badge }) {
   return (
     <div className="flex items-start justify-between gap-3 mb-3">
-      <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
-        {title}
-      </p>
-
+      <p className="font-mono text-[11px] tracking-[0.10em] uppercase text-ink-3">{title}</p>
       {badge && (
-        <span className="shrink-0 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1 text-[11px] font-semibold text-slate-500 dark:text-slate-300">
+        <span className="shrink-0 rounded-full border border-ink/10 bg-paper-2 px-2.5 py-1 font-mono text-[11px] text-ink-3">
           {badge}
         </span>
       )}

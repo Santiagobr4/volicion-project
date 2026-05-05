@@ -1,51 +1,74 @@
 import { Link } from "react-router-dom";
 
-const footerLinks = [
-  { label: "Inicio", to: "/" },
-  { label: "Términos", to: "/terms" },
-  { label: "Privacidad", to: "/privacy" },
-  { label: "Cookies", to: "/cookies" },
-];
-
 export default function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-slate-200/80 dark:border-slate-700 bg-white/80 dark:bg-slate-950/80 backdrop-blur">
-      <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 py-8 sm:py-10">
-        <div className="grid gap-8 md:grid-cols-[1.4fr_1fr]">
+    <footer className="mt-auto border-t border-ink/10 pt-12 pb-9 text-[13px] text-ink-3">
+      <div className="max-w-[1240px] mx-auto px-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr] gap-12">
           <div>
-            <p className="text-lg font-semibold tracking-tight">VOLICION</p>
-            <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-300 max-w-md">
-              Construye hábitos, mantén la disciplina y avanza con claridad. Un
+            <div className="flex items-center gap-2.5 font-serif text-[22px] text-ink mb-3.5">
+              <BrandMark />
+              VOLICION
+            </div>
+            <p className="max-w-xs leading-relaxed">
+              Construye hábitos. Mantén la disciplina. Avanza con claridad. Un
               espacio simple para crecer con consistencia.
             </p>
           </div>
 
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-300">
-              Navegación
-            </p>
-            <ul className="mt-3 space-y-2 text-sm">
-              {footerLinks.map((link) => (
-                <li key={link.label}>
-                  <Link
-                    to={link.to}
-                    className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <h6 className="font-mono text-[11px] tracking-[0.12em] uppercase text-ink-4 mb-3.5">
+              Producto
+            </h6>
+            <div className="flex flex-col gap-1">
+              <Link to="/" className="py-1 text-ink-2 hover:text-ink transition-colors">Inicio</Link>
+              <a href="#" className="py-1 text-ink-2 hover:text-ink transition-colors">Cómo funciona</a>
+            </div>
+          </div>
+
+          <div>
+            <h6 className="font-mono text-[11px] tracking-[0.12em] uppercase text-ink-4 mb-3.5">
+              Legal
+            </h6>
+            <div className="flex flex-col gap-1">
+              <Link to="/terms" className="py-1 text-ink-2 hover:text-ink transition-colors">Términos</Link>
+              <Link to="/privacy" className="py-1 text-ink-2 hover:text-ink transition-colors">Privacidad</Link>
+              <Link to="/cookies" className="py-1 text-ink-2 hover:text-ink transition-colors">Cookies</Link>
+            </div>
+          </div>
+
+          <div>
+            <h6 className="font-mono text-[11px] tracking-[0.12em] uppercase text-ink-4 mb-3.5">
+              Contacto
+            </h6>
+            <div className="flex flex-col gap-1">
+              <a href="mailto:hola@volicion.org" className="py-1 text-ink-2 hover:text-ink transition-colors">
+                hola@volicion.org
+              </a>
+            </div>
           </div>
         </div>
 
-        <div className="mt-8 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between border-t border-slate-200/80 dark:border-slate-700 pt-4 text-sm text-slate-500 dark:text-slate-400">
-          <p>© {year} VOLICION. Todos los derechos reservados.</p>
-          <p>Hecho para disciplina, constancia y mejora personal.</p>
+        <div className="mt-12 pt-6 border-t border-ink/10 flex flex-wrap items-center justify-between gap-3">
+          <span className="font-mono text-[11px] tracking-[0.10em] uppercase text-ink-4">
+            © {year} VOLICION · TODOS LOS DERECHOS RESERVADOS
+          </span>
+          <span className="font-mono text-[11px] tracking-[0.10em] uppercase text-ink-4">
+            HECHO PARA DISCIPLINA · CONSTANCIA · MEJORA
+          </span>
         </div>
       </div>
     </footer>
+  );
+}
+
+function BrandMark() {
+  return (
+    <span className="relative inline-flex w-[22px] h-[22px] rounded-full bg-ink items-center justify-center shrink-0">
+      <span className="absolute inset-[4px] rounded-full bg-paper" />
+      <span className="relative z-10 w-[6px] h-[6px] rounded-full bg-ink" />
+    </span>
   );
 }

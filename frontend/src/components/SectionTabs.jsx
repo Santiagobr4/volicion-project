@@ -1,5 +1,3 @@
-import { segmentedButtonClassName } from "./ui.js";
-
 const TAB_ITEMS = [
   { id: "tracker", label: "Seguimiento" },
   { id: "history", label: "Historial" },
@@ -9,19 +7,26 @@ const TAB_ITEMS = [
 
 export default function SectionTabs({ current, onChange }) {
   return (
-    <div className="mb-6 rounded-2xl border border-slate-300 dark:border-slate-700 p-1 bg-white/70 dark:bg-slate-800/70 overflow-x-auto">
-      <div className="inline-flex min-w-max gap-1">
-        {TAB_ITEMS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => onChange(tab.id)}
-            className={segmentedButtonClassName(current === tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+    <div className="flex items-center border-b border-ink/10 overflow-x-auto">
+      {TAB_ITEMS.map((tab, i) => (
+        <button
+          key={tab.id}
+          type="button"
+          onClick={() => onChange(tab.id)}
+          className={[
+            "relative py-4 mr-7 font-sans font-medium text-sm cursor-pointer transition-colors shrink-0 last:mr-0",
+            current === tab.id ? "text-ink" : "text-ink-3 hover:text-ink",
+          ].join(" ")}
+        >
+          <span className="font-mono text-[10px] text-ink-4 mr-1.5">
+            {String(i + 1).padStart(2, "0")}
+          </span>
+          {tab.label}
+          {current === tab.id && (
+            <span className="absolute left-0 right-0 bottom-[-1px] h-[2px] bg-ink rounded-full" />
+          )}
+        </button>
+      ))}
     </div>
   );
 }

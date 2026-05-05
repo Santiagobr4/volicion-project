@@ -5,6 +5,7 @@ import {
   getIsoDayNameShort,
 } from "../utils/dateLabels";
 import { isFutureIsoDate } from "../utils/dateUtils";
+import { buttonClassName } from "./ui.js";
 
 export default function HabitCardMobile({
   habit,
@@ -17,9 +18,7 @@ export default function HabitCardMobile({
   const canShowActions = !habit.removal_effective_date;
   const removalMessage = (() => {
     if (!habit.removal_effective_date) return "";
-    const [year, month, day] = habit.removal_effective_date
-      .split("-")
-      .map(Number);
+    const [year, month, day] = habit.removal_effective_date.split("-").map(Number);
     const removalDate = new Date(Date.UTC(year, month - 1, day));
     removalDate.setUTCDate(removalDate.getUTCDate() - 1);
     const deletionIso = removalDate.toISOString().slice(0, 10);
@@ -27,28 +26,22 @@ export default function HabitCardMobile({
   })();
 
   return (
-    <article className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-800/60 p-3 shadow-sm">
+    <article className="rounded-[14px] border border-ink/10 bg-paper-2 p-3">
       <div className="flex items-start justify-between gap-3">
-        <h4 className="font-semibold text-sm leading-5 whitespace-normal break-normal">
-          {habit.name}
-        </h4>
-        <div className="shrink-0 text-right text-xs">
-          <p className="font-semibold text-slate-700 dark:text-slate-200">
-            {habit.streak_current || 0}d
-          </p>
-          <p className="text-slate-500 dark:text-slate-300">
-            Mejor {habit.streak_best || 0}d
-          </p>
+        <h4 className="font-medium text-sm leading-5 whitespace-normal break-normal">{habit.name}</h4>
+        <div className="shrink-0 text-right leading-none">
+          <p className="font-serif text-[20px]">{habit.streak_current || 0}</p>
+          <p className="font-mono text-[10px] text-ink-4 mt-0.5">/{habit.streak_best || 0} mejor</p>
         </div>
       </div>
 
       <div className="mt-3 grid grid-cols-7 gap-1.5">
         {dates.map((date) => (
           <div key={date} className="min-w-0 text-center">
-            <p className="text-[11px] font-medium text-slate-500 dark:text-slate-300 truncate">
+            <p className="font-mono text-[10px] uppercase text-ink-4 truncate">
               {getIsoDayNameShort(date)}
             </p>
-            <p className="text-[11px] text-slate-400 dark:text-slate-400 truncate mb-1">
+            <p className="font-mono text-[10px] text-ink-4 truncate mb-1">
               {getIsoDateLabel(date)}
             </p>
             <TableCell
@@ -65,33 +58,23 @@ export default function HabitCardMobile({
           <button
             onClick={() => onEdit(habit)}
             disabled={!canManageHabits}
-            className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-xs hover:bg-slate-100 dark:hover:bg-slate-700 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-            title={
-              canManageHabits
-                ? "Editar"
-                : "Solo puedes editar o eliminar hábitos los domingos"
-            }
+            className={buttonClassName({ variant: "ghost", size: "sm", fullWidth: true })}
+            title={canManageHabits ? "Editar" : "Solo puedes editar o eliminar hábitos los domingos"}
           >
             Editar
           </button>
-
           <button
             onClick={() => onDelete(habit)}
             disabled={!canManageHabits}
-            className="px-3 py-2 rounded-lg border border-red-300 text-red-600 dark:border-red-700 dark:text-red-400 text-xs hover:bg-red-50 dark:hover:bg-red-950/40 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-            title={
-              canManageHabits
-                ? "Eliminar"
-                : "Solo puedes editar o eliminar hábitos los domingos"
-            }
+            className={buttonClassName({ variant: "danger", size: "sm", fullWidth: true })}
+            title={canManageHabits ? "Eliminar" : "Solo puedes editar o eliminar hábitos los domingos"}
           >
             Eliminar
           </button>
         </div>
       ) : (
         <div className="mt-3 flex justify-center">
-          <p className="inline-flex items-center gap-1 rounded-full border border-amber-300/80 dark:border-amber-700/70 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 px-2.5 py-1 text-xs font-medium text-center">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 dark:bg-amber-300" />
+          <p className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/8 text-ink-3 px-3 py-1 font-mono text-[10px]">
             {removalMessage || "Eliminado"}
           </p>
         </div>

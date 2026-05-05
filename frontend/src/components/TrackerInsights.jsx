@@ -4,16 +4,6 @@ import {
   getIsoDayNameShort,
   formatReadableDateRange,
 } from "../utils/dateLabels";
-import CardHeader from "./CardHeader";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 
 const formatInsightDate = (isoDate) => {
   if (!isoDate) return "Fecha desconocida";
@@ -32,36 +22,18 @@ const formatDateList = (dates) => {
   return `${dates[0]}, ${dates[1]} y ${dates.length - 2} más`;
 };
 
-const TrendTooltip = ({ active, payload, label }) => {
-  if (!active || !payload?.length) {
-    return null;
-  }
-
-  const value = payload[0]?.value;
-  if (typeof value !== "number" || Number.isNaN(value)) {
-    return null;
-  }
-
-  return (
-    <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 px-3 py-2 shadow-sm">
-      <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
-        {label}
-      </p>
-      <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-        {formatPercent(value)}
-      </p>
-    </div>
-  );
+const toneStyles = {
+  success:  "border-lime/30 bg-lime/8",
+  warning:  "border-gold/30 bg-gold/8",
+  critical: "border-signal/25 bg-signal-soft",
+  info:     "border-ink/10 bg-paper-2",
 };
 
-const toneStyles = {
-  success:
-    "border-emerald-200 dark:border-emerald-800/70 bg-emerald-50/80 dark:bg-emerald-950/20",
-  warning:
-    "border-amber-200 dark:border-amber-800/70 bg-amber-50/80 dark:bg-amber-950/20",
-  critical:
-    "border-rose-200 dark:border-rose-800/70 bg-rose-50/80 dark:bg-rose-950/20",
-  info: "border-sky-200 dark:border-sky-800/70 bg-sky-50/80 dark:bg-sky-950/20",
+const toneEyebrows = {
+  success:  "Positivo",
+  warning:  "Atención",
+  critical: "Crítico",
+  info:     "Info",
 };
 
 const getTrendDirection = (values) => {
@@ -102,198 +74,113 @@ const buildInsights = ({
 
   const bestDay = validDaily.reduce(
     (best, row) =>
-      best === null || (row.completion ?? -1) > (best.completion ?? -1)
-        ? row
-        : best,
+      best === null || (row.completion ?? -1) > (best.completion ?? -1) ? row : best,
     null,
   );
-
   const maxCompletion = bestDay?.completion ?? null;
   const topDays =
     maxCompletion === null
       ? []
       : validDaily.filter((row) => row.completion === maxCompletion);
-
   const perfectDays = validDaily.filter((row) => row.completion === 100);
   const hasMultiplePerfectDays = perfectDays.length > 1;
-
   const cards = [];
 
   if (hasNoHabitsConfigured) {
-    return [
-      {
-        tone: "info",
-        title: "Tu panel está listo para arrancar",
-        text: "Aún no tienes hábitos activos en esta semana. Crea uno pequeño para comenzar a generar métricas útiles.",
-      },
-    ];
+    return [{
+      tone: "info",
+      title: "Tu panel está listo para arrancar",
+      text: "Aún no tienes hábitos activos en esta semana. Crea uno pequeño para comenzar a generar métricas útiles.",
+    }];
   }
 
   if (isFutureWeek) {
-    return [
-      {
-        tone: "info",
-        title: "Semana aún no iniciada",
-        text: "Cuando llegue esta semana, verás progreso real día por día. Por ahora no hacemos proyecciones.",
-      },
-    ];
+    return [{
+      tone: "info",
+      title: "Semana aún no iniciada",
+      text: "Cuando llegue esta semana, verás progreso real día por día. Por ahora no hacemos proyecciones.",
+    }];
   }
 
   if (observedDays === 0) {
     if (isFirstWeek && evaluatedDays <= 1) {
-      return [
-        {
-          tone: "info",
-          title: "Primer día: construye inercia",
-          text: "Tu objetivo hoy no es la perfección, es arrancar. Completa una versión mínima y mañana será más fácil.",
-        },
-      ];
+      return [{
+        tone: "info",
+        title: "Primer día: construye inercia",
+        text: "Tu objetivo hoy no es la perfección, es arrancar. Completa una versión mínima y mañana será más fácil.",
+      }];
     }
-
-    return [
-      {
-        tone: "warning",
-        title: "Semana sin registros todavía",
-        text: `Ya transcurrieron ${elapsedDays} de ${cappedTotalDays} días, pero aún no registras actividad. Arranca con un hábito sencillo hoy para activar tus insights.`,
-      },
-    ];
+    return [{
+      tone: "warning",
+      title: "Semana sin registros todavía",
+      text: `Ya transcurrieron ${elapsedDays} de ${cappedTotalDays} días, pero aún no registras actividad. Arranca con un hábito sencillo hoy para activar tus insights.`,
+    }];
   }
 
   if (focus?.completion !== null && focus?.completion !== undefined) {
     if (focus.completion >= 80) {
-      cards.push({
-        tone: "success",
-        title: "Hoy vas sólido",
-        text: "Se nota consistencia. Mantén este mismo umbral para cerrar la semana fuerte.",
-      });
+      cards.push({ tone: "success", title: "Hoy vas sólido", text: "Se nota consistencia. Mantén este mismo umbral para cerrar la semana fuerte." });
     } else if (focus.completion >= 50) {
-      cards.push({
-        tone: "warning",
-        title: "Hoy estás cerca",
-        text: "Con un hábito más terminado, el día cambia de nivel y mejora tu promedio semanal.",
-      });
+      cards.push({ tone: "warning", title: "Hoy estás cerca", text: "Con un hábito más terminado, el día cambia de nivel y mejora tu promedio semanal." });
     } else {
-      cards.push({
-        tone: "critical",
-        title: "Hoy toca destrabar",
-        text: "No busques hacerlo perfecto: cumple una versión mínima ahora y recupera tracción.",
-      });
+      cards.push({ tone: "critical", title: "Hoy toca destrabar", text: "No busques hacerlo perfecto: cumple una versión mínima ahora y recupera tracción." });
     }
   }
 
   if (elapsedDays > 0) {
     if (isStartPhase) {
-      cards.push({
-        tone: "info",
-        title: "Inicio de semana",
-        text: `Llevas ${elapsedDays} de ${cappedTotalDays} días transcurridos. Prioriza continuidad: dos días seguidos valen más que un día perfecto aislado.`,
-      });
+      cards.push({ tone: "info", title: "Inicio de semana", text: `Llevas ${elapsedDays} de ${cappedTotalDays} días transcurridos. Prioriza continuidad: dos días seguidos valen más que un día perfecto aislado.` });
     } else if (isMidPhase) {
-      cards.push({
-        tone: "info",
-        title: "Mitad de semana",
-        text: `Ya tienes ${elapsedDays} de ${cappedTotalDays} días transcurridos. Este es el mejor momento para ajustar carga y proteger tus hábitos clave.`,
-      });
+      cards.push({ tone: "info", title: "Mitad de semana", text: `Ya tienes ${elapsedDays} de ${cappedTotalDays} días transcurridos. Este es el mejor momento para ajustar carga y proteger tus hábitos clave.` });
     } else if (isLatePhase) {
-      cards.push({
-        tone: "info",
-        title: "Cierre en construcción",
-        text: `Has recorrido ${elapsedDays} de ${cappedTotalDays} días. Tu patrón ya es claro: enfócate en cerrar fuerte, no en compensar todo de golpe.`,
-      });
+      cards.push({ tone: "info", title: "Cierre en construcción", text: `Has recorrido ${elapsedDays} de ${cappedTotalDays} días. Tu patrón ya es claro: enfócate en cerrar fuerte, no en compensar todo de golpe.` });
     }
   } else {
-    cards.push({
-      tone: "info",
-      title: "Aún no hay días evaluados",
-      text: "A medida que avance la semana, aquí aparecerán métricas más precisas.",
-    });
+    cards.push({ tone: "info", title: "Aún no hay días evaluados", text: "A medida que avance la semana, aquí aparecerán métricas más precisas." });
   }
 
   if (week?.completion !== null && week?.completion !== undefined) {
     if (isStartPhase) {
-      cards.push({
-        tone: "info",
-        title: "Lectura temprana",
-        text: "El porcentaje aún fluctúa mucho. Quédate con la dirección, no con el número exacto.",
-      });
+      cards.push({ tone: "info", title: "Lectura temprana", text: "El porcentaje aún fluctúa mucho. Quédate con la dirección, no con el número exacto." });
     } else if (week.completion >= 80) {
-      cards.push({
-        tone: "success",
-        title: "Semana muy sólida",
-        text: "Tu sistema está funcionando. Conserva la estructura actual y evita cambios bruscos.",
-      });
+      cards.push({ tone: "success", title: "Semana muy sólida", text: "Tu sistema está funcionando. Conserva la estructura actual y evita cambios bruscos." });
     } else if (week.completion >= 60) {
-      cards.push({
-        tone: "info",
-        title: "Base semanal estable",
-        text: "Vas en buen camino. Un cierre consistente puede llevarte al siguiente nivel.",
-      });
+      cards.push({ tone: "info", title: "Base semanal estable", text: "Vas en buen camino. Un cierre consistente puede llevarte al siguiente nivel." });
     } else {
-      cards.push({
-        tone: "warning",
-        title: "Semana en recuperación",
-        text: "Elige un hábito ancla y protégelo hasta el cierre; eso suele levantar todo el tablero.",
-      });
+      cards.push({ tone: "warning", title: "Semana en recuperación", text: "Elige un hábito ancla y protégelo hasta el cierre; eso suele levantar todo el tablero." });
     }
   }
 
   if (!isStartPhase && observedDays >= 3 && trend === "up") {
-    cards.push({
-      tone: "info",
-      title: "Tendencia positiva",
-      text: "Vas de menos a más. Repite el contexto de tus mejores días para consolidarlo.",
-    });
+    cards.push({ tone: "info", title: "Tendencia positiva", text: "Vas de menos a más. Repite el contexto de tus mejores días para consolidarlo." });
   } else if (!isStartPhase && observedDays >= 3 && trend === "down") {
-    cards.push({
-      tone: "warning",
-      title: "Tendencia en descenso",
-      text: "Reduce fricción hoy: simplifica el hábito más pesado y vuelve a encadenar días cumplidos.",
-    });
+    cards.push({ tone: "warning", title: "Tendencia en descenso", text: "Reduce fricción hoy: simplifica el hábito más pesado y vuelve a encadenar días cumplidos." });
   }
 
   if (!isStartPhase && observedDays >= 3 && weakDays.length > 0) {
     cards.push({
       tone: weakRatio >= 0.35 ? "critical" : "warning",
       title: `${weakDays.length} día${weakDays.length === 1 ? "" : "s"} con baja adherencia`,
-      text:
-        weakRatio >= 0.35
-          ? "Los días flojos ya impactan tu semana. Define una versión de emergencia para no cortar la cadena."
-          : "Tu siguiente salto está en estabilizar los días flojos con una meta mínima clara.",
+      text: weakRatio >= 0.35
+        ? "Los días flojos ya impactan tu semana. Define una versión de emergencia para no cortar la cadena."
+        : "Tu siguiente salto está en estabilizar los días flojos con una meta mínima clara.",
     });
   }
 
   if (!isStartPhase && observedDays >= 3 && bestDay) {
     if (hasMultiplePerfectDays) {
-      const formattedPerfectDates = perfectDays.map((row) =>
-        formatInsightDate(row.date),
-      );
-      cards.push({
-        tone: "success",
-        title: `${perfectDays.length} días perfectos esta semana`,
-        text: `Lograste 100% en ${formatDateList(formattedPerfectDates)}. Eso confirma que tu sistema funciona, así que protege ese ritmo.`,
-      });
+      const formattedPerfectDates = perfectDays.map((row) => formatInsightDate(row.date));
+      cards.push({ tone: "success", title: `${perfectDays.length} días perfectos esta semana`, text: `Lograste 100% en ${formatDateList(formattedPerfectDates)}. Eso confirma que tu sistema funciona, así que protege ese ritmo.` });
     } else if (topDays.length > 1) {
       const tiedDates = topDays.map((row) => formatInsightDate(row.date));
-      cards.push({
-        tone: "info",
-        title: `Mejores días de la semana: ${formatPercent(maxCompletion)}`,
-        text: `Tu mejor resultado se repitió en ${formatDateList(tiedDates)}. Estás creando logros repetibles; refuerza ese patrón.`,
-      });
+      cards.push({ tone: "info", title: `Mejores días de la semana: ${formatPercent(maxCompletion)}`, text: `Tu mejor resultado se repitió en ${formatDateList(tiedDates)}. Estás creando logros repetibles; refuerza ese patrón.` });
     } else {
-      cards.push({
-        tone: "info",
-        title: `Mejor día de la semana: ${formatInsightDate(bestDay.date)}`,
-        text: `${formatPercent(bestDay.completion)} fue tu punto más alto. Repite ese contexto y vuelve ese buen día tu nueva normalidad.`,
-      });
+      cards.push({ tone: "info", title: `Mejor día de la semana: ${formatInsightDate(bestDay.date)}`, text: `${formatPercent(bestDay.completion)} fue tu punto más alto. Repite ese contexto y vuelve ese buen día tu nueva normalidad.` });
     }
   }
 
   if (cards.length === 0) {
-    cards.push({
-      tone: "info",
-      title: "Señales en construcción",
-      text: "Mantén la constancia unos días más y aparecerán recomendaciones más precisas y accionables.",
-    });
+    cards.push({ tone: "info", title: "Señales en construcción", text: "Mantén la constancia unos días más y aparecerán recomendaciones más precisas y accionables." });
   }
 
   const hasCriticalWeakSignal = weakRatio >= 0.35;
@@ -307,34 +194,71 @@ const buildInsights = ({
   return orderedCards.slice(0, 3);
 };
 
+function TrendBars({ data }) {
+  if (!data.length) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-sm text-ink-3 text-center px-4">
+          Aún no hay datos suficientes
+        </p>
+      </div>
+    );
+  }
+
+  const n = data.length;
+  const slotW = 100 / n;
+  const barW = slotW * 0.6;
+  const barOffset = (slotW - barW) / 2;
+  const chartH = 50;
+
+  return (
+    <svg viewBox="0 0 100 68" className="w-full h-full overflow-visible">
+      {[25, 50, 75].map((pct) => (
+        <line
+          key={pct}
+          x1="0" y1={chartH * (1 - pct / 100)}
+          x2="100" y2={chartH * (1 - pct / 100)}
+          stroke="var(--ink)" strokeOpacity="0.08" strokeWidth="0.5"
+        />
+      ))}
+      {data.map((d, i) => {
+        const x = i * slotW + barOffset;
+        const barH = Math.max(1, (d.completion / 100) * chartH);
+        const y = chartH - barH;
+        const fill =
+          d.completion >= 80 ? "var(--lime)"
+          : d.completion >= 50 ? "var(--gold)"
+          : "var(--signal)";
+        return (
+          <g key={i}>
+            <rect x={x} y={y} width={barW} height={barH} fill={fill} rx="1.5" />
+            <text
+              x={i * slotW + slotW / 2} y="65"
+              fontSize="5" textAnchor="middle"
+              fill="var(--ink)" fillOpacity="0.45"
+            >
+              {d.day}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 export default function TrackerInsights({ metrics }) {
   const daily = metrics?.daily || [];
   const safeDaily = daily.filter((row) => row && row.date);
   const focus = metrics?.focus;
   const week = metrics?.week;
   const isFirstWeek =
-    metrics?.baseline_date &&
-    week?.start_date &&
-    metrics.baseline_date === week.start_date;
+    metrics?.baseline_date && week?.start_date && metrics.baseline_date === week.start_date;
   const isCurrentWeek = metrics?.is_current_week;
-  const weekPhase =
-    metrics?.week_phase || (safeDaily.length === 0 ? "future" : "mid");
-  const evaluatedDays = Math.max(
-    metrics?.evaluated_days ?? 0,
-    safeDaily.length,
-  );
+  const weekPhase = metrics?.week_phase || (safeDaily.length === 0 ? "future" : "mid");
+  const evaluatedDays = Math.max(metrics?.evaluated_days ?? 0, safeDaily.length);
   const totalDays = Math.max(metrics?.total_days ?? 7, evaluatedDays, 1);
-  const insights = buildInsights({
-    daily: safeDaily,
-    focus,
-    week,
-    weekPhase,
-    evaluatedDays,
-    totalDays,
-    isFirstWeek,
-  });
-  const hasNoHabitsConfigured =
-    (focus?.total ?? 0) === 0 && (week?.total ?? 0) === 0;
+  const insights = buildInsights({ daily: safeDaily, focus, week, weekPhase, evaluatedDays, totalDays, isFirstWeek });
+  const hasNoHabitsConfigured = (focus?.total ?? 0) === 0 && (week?.total ?? 0) === 0;
   const focusLabel = hasNoHabitsConfigured
     ? "Sin hábitos activos"
     : weekPhase === "future"
@@ -360,72 +284,70 @@ export default function TrackerInsights({ metrics }) {
     weekPhase !== "complete" &&
     evaluatedDays > 0 &&
     evaluatedDays < totalDays;
-  const showTrendInline = safeDaily.length > 0 && safeDaily.length <= 7;
+
   const trendRawRows = safeDaily.slice(0, Math.max(evaluatedDays, 0));
   const trendChartData = trendRawRows
     .filter((row) =>
       Number.isFinite(
-        typeof row?.completion === "number"
-          ? row.completion
-          : Number(row?.completion),
+        typeof row?.completion === "number" ? row.completion : Number(row?.completion),
       ),
     )
     .map((row) => {
       const numericCompletion =
-        typeof row.completion === "number"
-          ? row.completion
-          : Number(row.completion);
+        typeof row.completion === "number" ? row.completion : Number(row.completion);
       return {
         day: getIsoDayNameShort(row.date),
         completion: Math.max(0, Math.min(100, numericCompletion)),
       };
     });
+
   const hasTrendData = trendChartData.length > 0;
-  const isSingleTrendDay = trendChartData.length === 1;
-  const trendBarSize =
-    trendChartData.length <= 2 ? 40 : trendChartData.length <= 4 ? 30 : 22;
-  const trendXAxisPadding = isSingleTrendDay
-    ? { left: 64, right: 64 }
-    : { left: 8, right: 8 };
 
   return (
-    <div className="mt-7 rounded-2xl border border-slate-200/80 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-900/70 p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-        <h3 className="text-lg font-semibold">Rendimiento actual</h3>
-        <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500 dark:text-slate-300">
-          <span className="rounded-full border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/70 px-3 py-1">
+    <div className="mt-10 border-t border-ink/10 pt-8">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div>
+          <span className="font-mono text-[11px] tracking-[0.12em] uppercase text-ink-4">
+            Rendimiento actual
+          </span>
+          <p className="font-serif text-[28px] leading-tight tracking-[-0.02em] mt-0.5">
             {progressSubtitle}
-          </span>
-          <span className="hidden sm:inline">
-            Línea base desde {metrics?.baseline_date}
-          </span>
+          </p>
         </div>
+        {metrics?.baseline_date && (
+          <span className="font-mono text-[11px] text-ink-4">
+            Base desde {metrics.baseline_date}
+          </span>
+        )}
       </div>
 
       {hasPartialDataContext && (
-        <div className="mb-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/75 dark:bg-slate-800/50 px-4 py-3">
-          <p className="text-sm text-slate-700 dark:text-slate-200">
+        <div className="mb-6 rounded-[10px] border border-ink/10 bg-paper-2 px-4 py-3">
+          <p className="text-sm text-ink-3">
             Aún es pronto en la semana. Estas lecturas llegan hasta el día{" "}
             {Math.min(evaluatedDays, totalDays)} de {totalDays}.
           </p>
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+      {/* Insight cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8">
         {insights.map((insight) => (
           <div
             key={`${insight.title}-${insight.text}`}
-            className={`rounded-2xl border p-4 shadow-sm ${toneStyles[insight.tone]}`}
+            className={`rounded-[14px] border p-4 ${toneStyles[insight.tone]}`}
           >
-            <p className="text-sm font-semibold">{insight.title}</p>
-            <p className="text-sm mt-2 leading-6 opacity-90">{insight.text}</p>
+            <p className="font-mono text-[10px] tracking-[0.10em] uppercase text-ink-4 mb-2">
+              {toneEyebrows[insight.tone]}
+            </p>
+            <p className="font-serif text-[18px] leading-tight mb-2">{insight.title}</p>
+            <p className="text-sm leading-relaxed text-ink-2">{insight.text}</p>
           </div>
         ))}
       </div>
 
-      <div
-        className={`grid grid-cols-1 ${showTrendInline ? "lg:grid-cols-3" : "md:grid-cols-2"} gap-4 mb-6`}
-      >
+      {/* Performance grid */}
+      <div className={`grid grid-cols-1 ${hasTrendData ? "lg:grid-cols-3" : "md:grid-cols-2"} gap-4`}>
         <CompletionRing
           value={focus?.completion}
           title={focusLabel}
@@ -442,132 +364,25 @@ export default function TrackerInsights({ metrics }) {
           }
         />
 
-        {showTrendInline && (
-          <div className="h-full rounded-xl border border-slate-200 dark:border-slate-700 p-4 bg-white dark:bg-slate-800/70 flex flex-col">
-            <CardHeader
-              title="Tendencia semanal"
-              badge={formatPercent(week?.completion)}
-            />
-            <div className="mt-3 h-40">
-              {!hasTrendData && (
-                <p className="flex h-full items-center justify-center text-sm text-slate-500 dark:text-slate-300 text-center px-4">
-                  Aún no hay datos suficientes para mostrar tendencia
-                </p>
-              )}
-
-              {hasTrendData && (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={trendChartData}
-                    margin={{ top: 8, right: 6, left: 6, bottom: 0 }}
-                    barCategoryGap={isSingleTrendDay ? "52%" : "28%"}
-                  >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke="#cbd5e1"
-                      vertical={false}
-                    />
-                    <XAxis
-                      dataKey="day"
-                      tick={{ fontSize: 11, fill: "#64748b" }}
-                      axisLine={false}
-                      tickLine={false}
-                      padding={trendXAxisPadding}
-                    />
-                    <YAxis
-                      domain={[0, 100]}
-                      ticks={[0, 25, 50, 75, 100]}
-                      allowDecimals={false}
-                      tick={{ fontSize: 11, fill: "#64748b" }}
-                      tickMargin={6}
-                      axisLine={false}
-                      tickLine={false}
-                      width={34}
-                    />
-                    <Tooltip
-                      content={<TrendTooltip />}
-                      cursor={{ fill: "rgba(148, 163, 184, 0.16)" }}
-                    />
-                    <Bar
-                      dataKey="completion"
-                      fill="#16a34a"
-                      radius={[6, 6, 0, 0]}
-                      maxBarSize={44}
-                      barSize={trendBarSize}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
+        {hasTrendData && (
+          <div className="h-full rounded-[14px] border border-ink/10 p-4 bg-paper flex flex-col">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <p className="font-mono text-[11px] tracking-[0.10em] uppercase text-ink-3">
+                Tendencia semanal
+              </p>
+              <span className="shrink-0 rounded-full border border-ink/10 bg-paper-2 px-2.5 py-1 font-mono text-[11px] text-ink-3">
+                {formatPercent(week?.completion)}
+              </span>
             </div>
-            <p className="text-xs text-slate-500 mt-3 text-center min-h-8">
+            <div className="flex-1 min-h-[140px]">
+              <TrendBars data={trendChartData} />
+            </div>
+            <p className="font-mono text-[10px] text-ink-4 mt-3 text-center">
               {formatReadableDateRange(week?.start_date, week?.end_date)}
             </p>
           </div>
         )}
       </div>
-
-      {!showTrendInline && (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 bg-white dark:bg-slate-800/70">
-          <CardHeader
-            title="Tendencia semanal"
-            badge={formatPercent(week?.completion)}
-          />
-          <div className="h-44 mt-3">
-            {!hasTrendData && (
-              <p className="text-sm text-slate-500 dark:text-slate-300 text-center h-full flex items-center justify-center px-4">
-                Aún no hay datos suficientes para mostrar tendencia
-              </p>
-            )}
-
-            {hasTrendData && (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={trendChartData}
-                  margin={{ top: 8, right: 8, left: 6, bottom: 0 }}
-                  barCategoryGap={isSingleTrendDay ? "52%" : "30%"}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="#cbd5e1"
-                    vertical={false}
-                  />
-                  <XAxis
-                    dataKey="day"
-                    tick={{ fontSize: 11, fill: "#64748b" }}
-                    axisLine={false}
-                    tickLine={false}
-                    padding={trendXAxisPadding}
-                  />
-                  <YAxis
-                    domain={[0, 100]}
-                    ticks={[0, 25, 50, 75, 100]}
-                    allowDecimals={false}
-                    tick={{ fontSize: 11, fill: "#64748b" }}
-                    tickMargin={6}
-                    axisLine={false}
-                    tickLine={false}
-                    width={34}
-                  />
-                  <Tooltip
-                    content={<TrendTooltip />}
-                    cursor={{ fill: "rgba(148, 163, 184, 0.16)" }}
-                  />
-                  <Bar
-                    dataKey="completion"
-                    fill="#16a34a"
-                    radius={[6, 6, 0, 0]}
-                    maxBarSize={44}
-                    barSize={trendBarSize}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-          <p className="text-xs text-slate-500 mt-3 text-center min-h-8">
-            {formatReadableDateRange(week?.start_date, week?.end_date)}
-          </p>
-        </div>
-      )}
     </div>
   );
 }
