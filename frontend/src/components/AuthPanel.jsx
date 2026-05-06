@@ -5,7 +5,7 @@ import {
   register,
   requestPasswordResetByEmail,
 } from "../api/auth";
-import { buttonClassName, inputClassName, labelClassName } from "./ui.js";
+import { buttonClassName, eyebrowClassName, inputClassName, labelClassName } from "./ui.js";
 
 const defaultLogin    = { username: "", password: "" };
 const defaultRegister = { username: "", email: "", password: "" };
@@ -83,7 +83,7 @@ export default function AuthPanel({ onAuthenticated }) {
     <div className="max-w-[1240px] mx-auto px-4 sm:px-8">
       {/* Page header */}
       <div className="pt-14 pb-0 mb-12">
-        <span className="font-mono text-[11px] tracking-[0.12em] uppercase text-ink-3">
+        <span className={eyebrowClassName}>
           Manifiesto · 01
         </span>
         <h1 className="font-serif font-normal text-[clamp(40px,6vw,72px)] leading-[0.98] tracking-[-0.025em] mt-3 mb-4">
@@ -169,8 +169,8 @@ export default function AuthPanel({ onAuthenticated }) {
 
             {mode === "login" ? (
               <form onSubmit={onLogin} className="flex flex-col gap-6">
-                <div className="flex flex-col gap-2">
-                  <label className={labelClassName}>Usuario</label>
+                <label className="flex flex-col gap-2">
+                  <span className={labelClassName}>Usuario</span>
                   <input
                     type="text"
                     placeholder="tu_nombre"
@@ -179,10 +179,10 @@ export default function AuthPanel({ onAuthenticated }) {
                     onChange={(e) => setLoginForm((p) => ({ ...p, username: e.target.value }))}
                     className={inputClassName}
                   />
-                </div>
+                </label>
 
-                <div className="flex flex-col gap-2">
-                  <label className={labelClassName}>Contraseña</label>
+                <label className="flex flex-col gap-2">
+                  <span className={labelClassName}>Contraseña</span>
                   <div className="relative">
                     <input
                       type={showLoginPwd ? "text" : "password"}
@@ -200,7 +200,7 @@ export default function AuthPanel({ onAuthenticated }) {
                       {showLoginPwd ? "Ocultar" : "Mostrar"}
                     </button>
                   </div>
-                </div>
+                </label>
 
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-2">
                   <button
@@ -222,15 +222,17 @@ export default function AuthPanel({ onAuthenticated }) {
 
                 {showForgot && (
                   <div className="rounded-[14px] border border-ink/10 bg-paper-2 p-4 flex flex-col gap-3">
-                    <label className={labelClassName}>Correo de tu cuenta</label>
-                    <input
-                      type="email"
-                      required
-                      value={forgotEmail}
-                      onChange={(e) => setForgotEmail(e.target.value)}
-                      placeholder="tu@correo.com"
-                      className={inputClassName}
-                    />
+                    <label className="flex flex-col gap-2">
+                      <span className={labelClassName}>Correo de tu cuenta</span>
+                      <input
+                        type="email"
+                        required
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
+                        placeholder="tu@correo.com"
+                        className={inputClassName}
+                      />
+                    </label>
                     <button
                       type="button"
                       onClick={onForgotPassword}
@@ -247,8 +249,8 @@ export default function AuthPanel({ onAuthenticated }) {
               </form>
             ) : (
               <form onSubmit={onRegister} className="flex flex-col gap-6">
-                <div className="flex flex-col gap-2">
-                  <label className={labelClassName}>Usuario</label>
+                <label className="flex flex-col gap-2">
+                  <span className={labelClassName}>Usuario</span>
                   <input
                     type="text"
                     placeholder="elige_un_nombre"
@@ -257,10 +259,10 @@ export default function AuthPanel({ onAuthenticated }) {
                     onChange={(e) => setRegisterForm((p) => ({ ...p, username: e.target.value }))}
                     className={inputClassName}
                   />
-                </div>
+                </label>
 
-                <div className="flex flex-col gap-2">
-                  <label className={labelClassName}>Correo electrónico</label>
+                <label className="flex flex-col gap-2">
+                  <span className={labelClassName}>Correo electrónico</span>
                   <input
                     type="email"
                     placeholder="tu@correo.com"
@@ -269,10 +271,10 @@ export default function AuthPanel({ onAuthenticated }) {
                     onChange={(e) => setRegisterForm((p) => ({ ...p, email: e.target.value }))}
                     className={inputClassName}
                   />
-                </div>
+                </label>
 
-                <div className="flex flex-col gap-2">
-                  <label className={labelClassName}>Contraseña</label>
+                <label className="flex flex-col gap-2">
+                  <span className={labelClassName}>Contraseña</span>
                   <div className="relative">
                     <input
                       type={showRegisterPwd ? "text" : "password"}
@@ -291,7 +293,7 @@ export default function AuthPanel({ onAuthenticated }) {
                       {showRegisterPwd ? "Ocultar" : "Mostrar"}
                     </button>
                   </div>
-                </div>
+                </label>
 
                 <div className="mt-2">
                   <button

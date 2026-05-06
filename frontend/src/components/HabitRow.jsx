@@ -1,7 +1,7 @@
 import TableCell from "./TableCell";
 import { formatCompactDate, getIsoDayNameShort } from "../utils/dateLabels";
-import { isFutureIsoDate } from "../utils/dateUtils";
-import { buttonClassName } from "./ui.js";
+import { isFutureIsoDate, getTodayIsoDate } from "../utils/dateUtils";
+import { getHabitMeta, isHabitScheduledOnDate } from "../utils/habitHelpers";
 
 export default function HabitRow({
   habit,
@@ -10,6 +10,7 @@ export default function HabitRow({
   onEdit,
   onDelete,
   canManageHabits = true,
+  showActionsColumn = true,
 }) {
   const canShowActions = !habit.removal_effective_date;
   const removalMessage = (() => {
@@ -21,59 +22,72 @@ export default function HabitRow({
     return `Eliminado el ${getIsoDayNameShort(deletionIso)} ${formatCompactDate(deletionIso)}`;
   })();
 
-  const cellBg = "bg-paper-2";
+  const todayIso = getTodayIsoDate();
 
   return (
-    <tr>
-      <td className={`text-left px-3 py-3 min-w-52 rounded-l-[10px] ${cellBg}`}>
-        <span className="break-words font-medium">{habit.name}</span>
+    <tr className="border-b border-ink/8">
+      <td className="text-left px-3 py-4 min-w-52 align-middle">
+        <p className="font-serif text-[22px] leading-[1.1]">{habit.name}</p>
+        <p className="font-mono text-[10px] tracking-[0.10em] uppercase text-ink-4 mt-1">
+          {getHabitMeta(habit)}
+        </p>
       </td>
 
       {dates.map((date) => (
-        <td key={date} className={`py-2 ${cellBg}`}>
-          <TableCell
-            status={habit.week[date]}
-            onClick={() => onUpdate(habit.habit_id, date, habit.week[date])}
-            isFuture={isFutureIsoDate(date)}
-          />
+        <td key={date} className="py-2 align-middle">
+          <div className="flex justify-center">
+            <TableCell
+              status={habit.week[date]}
+              onClick={() => onUpdate(habit.habit_id, date, habit.week[date])}
+              isFuture={isFutureIsoDate(date)}
+              isToday={date === todayIso}
+              isScheduled={isHabitScheduledOnDate(habit, date)}
+            />
+          </div>
         </td>
       ))}
 
-      <td className={`px-2 ${cellBg}`}>
-        <div className="text-center leading-none">
-          <p className="font-serif text-[20px]">{habit.streak_current || 0}</p>
-          <p className="font-mono text-[10px] text-ink-4 mt-0.5">/{habit.streak_best || 0} mejor</p>
+      <td className="px-2 align-middle">
+        <div className="text-right leading-none pr-1">
+          <p className="font-serif text-[28px]">
+            {habit.streak_current || 0}<span className="font-serif text-[14px] text-ink-3">d</span>
+          </p>
+          <p className="font-mono text-[10px] tracking-[0.08em] uppercase text-ink-4 mt-1">
+            Mejor · {habit.streak_best || 0}d
+          </p>
         </div>
       </td>
 
-      <td className={`rounded-r-[10px] ${cellBg}`}>
-        {canShowActions ? (
-          <div className="flex items-center justify-center gap-1.5 px-2">
-            <button
-              onClick={() => onEdit(habit)}
-              disabled={!canManageHabits}
-              className={buttonClassName({ variant: "ghost", size: "sm" })}
-              title={canManageHabits ? "Editar" : "Solo puedes editar o eliminar hábitos los domingos"}
-            >
-              Editar
-            </button>
-            <button
-              onClick={() => onDelete(habit)}
-              disabled={!canManageHabits}
-              className={buttonClassName({ variant: "danger", size: "sm" })}
-              title={canManageHabits ? "Eliminar" : "Solo puedes editar o eliminar hábitos los domingos"}
-            >
-              Eliminar
-            </button>
-          </div>
-        ) : (
-          <div className="flex justify-center px-2">
-            <p className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/8 text-ink-3 px-3 py-1 font-mono text-[10px]">
-              {removalMessage || "Eliminado"}
-            </p>
-          </div>
-        )}
-      </td>
+      {showActionsColumn && (
+        <td className="align-middle">
+          {canShowActions ? (
+            canManageHabits ? (
+              <div className="flex items-center justify-end gap-1.5 px-2 fade-up">
+                <button
+                  onClick={() => onEdit(habit)}
+                  className="px-3.5 py-1.5 rounded-full border border-ink/22 text-ink-3 text-[13px] hover:border-ink hover:text-ink transition-colors cursor-pointer"
+                  title="Editar"
+                >
+                  Editar
+                </button>
+                <button
+                  onClick={() => onDelete(habit)}
+                  className="px-3.5 py-1.5 rounded-full border border-signal/40 text-signal text-[13px] hover:bg-signal-soft transition-colors cursor-pointer"
+                  title="Eliminar"
+                >
+                  Eliminar
+                </button>
+              </div>
+            ) : null
+          ) : (
+            <div className="flex justify-center px-2">
+              <p className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/8 text-ink-3 px-3 py-1 font-mono text-[10px]">
+                {removalMessage || "Eliminado"}
+              </p>
+            </div>
+          )}
+        </td>
+      )}
     </tr>
   );
 }

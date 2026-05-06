@@ -7,16 +7,71 @@ import {
   refreshAccessToken,
 } from "./api/auth";
 import AuthPanel from "./components/AuthPanel";
+import Dialog from "./components/Dialog";
 import LoadingSpinner from "./components/LoadingSpinner";
 import SectionTabs from "./components/SectionTabs";
 import WeeklyTable from "./components/WeeklyTable";
 import defaultAvatar from "./assets/default-avatar.svg";
 import { clearHabitOrder } from "./utils/habitOrderStorage";
-import { buttonClassName, segmentedButtonClassName, segmentedContainerClassName } from "./components/ui.js";
+import { buttonClassName } from "./components/ui.js";
 
 const HistoryPanel = lazy(() => import("./components/HistoryPanel"));
 const RankingPanel = lazy(() => import("./components/RankingPanel"));
 const ProfilePanel = lazy(() => import("./components/ProfilePanel"));
+
+function ThemeToggle({ theme, setTheme }) {
+  const modes = [
+    {
+      key: "light",
+      label: "Claro",
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+        </svg>
+      ),
+    },
+    {
+      key: "dark",
+      label: "Oscuro",
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      ),
+    },
+    {
+      key: "system",
+      label: "Sistema",
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none" />
+        </svg>
+      ),
+    },
+  ];
+
+  return (
+    <div className="flex items-center gap-1">
+      {modes.map((m) => (
+        <button
+          key={m.key}
+          type="button"
+          onClick={() => setTheme(m.key)}
+          aria-label={`Tema ${m.label}`}
+          aria-pressed={theme === m.key}
+          title={m.label}
+          className={`w-11 h-11 inline-flex items-center justify-center rounded-full cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/30 focus-visible:ring-offset-2 focus-visible:ring-offset-paper ${
+            theme === m.key ? "text-ink" : "text-ink-4 hover:text-ink-2"
+          }`}
+        >
+          {m.icon}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function BrandMark() {
   return (
@@ -110,13 +165,6 @@ function App() {
   const displayName = fullName || profile?.username || "Usuario";
   const avatarSrc = profile?.avatar_file_url || defaultAvatar;
 
-  const now = new Date();
-  const weekday = new Intl.DateTimeFormat("es-419", { weekday: "short" }).format(now).toUpperCase();
-  const day = now.getDate().toString().padStart(2, "0");
-  const month = new Intl.DateTimeFormat("es-419", { month: "long" }).format(now).toUpperCase();
-  const year = now.getFullYear();
-  const todayLabel = `${weekday} · ${day} ${month} · ${year}`;
-
   const renderSection = () => {
     if (section === "history")
       return <Suspense fallback={<LoadingSpinner label="Cargando sección..." />}><HistoryPanel refreshVersion={metricsRefreshVersion} /></Suspense>;
@@ -124,7 +172,7 @@ function App() {
       return <Suspense fallback={<LoadingSpinner label="Cargando sección..." />}><ProfilePanel onProfileChange={setProfile} /></Suspense>;
     if (section === "ranking")
       return <Suspense fallback={<LoadingSpinner label="Cargando sección..." />}><RankingPanel refreshVersion={metricsRefreshVersion} /></Suspense>;
-    return <WeeklyTable onDataChanged={notifyMetricsChanged} storageNamespace={profile?.user_id} />;
+    return <WeeklyTable onDataChanged={notifyMetricsChanged} storageNamespace={profile?.user_id} user={profile?.first_name || displayName} />;
   };
 
   return (
@@ -135,24 +183,9 @@ function App() {
           <div className="flex items-center gap-2.5">
             <BrandMark />
             <span className="font-serif text-[22px] tracking-[0.02em]">VOLICION</span>
-            <span className="hidden md:block font-mono text-[11px] text-ink-4 tracking-[0.12em] uppercase ml-3">
-              ÍNDICE {String(getWeekNumber(now)).padStart(3, "0")} · {new Intl.DateTimeFormat("es-419", { month: "short" }).format(now).toUpperCase()}
-            </span>
           </div>
           <div className="flex items-center gap-4">
-            <div className={segmentedContainerClassName}>
-              {[["light", "Claro"], ["dark", "Oscuro"], ["system", "Sistema"]].map(([mode, label]) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => setTheme(mode)}
-                  className={segmentedButtonClassName(theme === mode)}
-                  aria-pressed={theme === mode}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            <ThemeToggle theme={theme} setTheme={setTheme} />
             {isAuthenticated && (
               <button
                 type="button"
@@ -176,30 +209,34 @@ function App() {
 
       {isAuthenticated ? (
         <>
-          {/* User card + tabs */}
-          <div className="max-w-[1240px] mx-auto px-4 sm:px-8 mt-8">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 py-5 px-7 bg-paper-2 rounded-[18px] border border-ink/10">
-              <div className="flex items-center gap-4">
-                <img
-                  src={avatarSrc}
-                  alt="Avatar"
-                  className="w-14 h-14 rounded-full object-cover border border-ink/10"
-                />
-                <div>
-                  <span className="font-mono text-[11px] tracking-[0.12em] uppercase text-ink-3">
-                    Conectado como
-                  </span>
-                  <p className="font-serif text-[26px] leading-none mt-1">{displayName}</p>
+          {/* Combined identity + nav */}
+          <div className="max-w-[1240px] mx-auto px-4 sm:px-8 mt-6">
+            <div className="relative">
+              <div className="flex items-center gap-3 sm:gap-6 border-b border-ink/10 overflow-x-auto no-scrollbar">
+                <div className="flex items-center gap-2.5 shrink-0 pr-3 sm:pr-6 border-r border-ink/10 self-stretch">
+                  {profile?.avatar_file_url ? (
+                    <img
+                      src={avatarSrc}
+                      alt={displayName}
+                      width={28}
+                      height={28}
+                      decoding="async"
+                      className="w-7 h-7 rounded-full object-cover border border-ink/10"
+                    />
+                  ) : (
+                    <div className="w-7 h-7 rounded-full bg-paper-3 border border-ink/10 flex items-center justify-center font-serif text-[14px] leading-none text-ink">
+                      {displayName?.[0]?.toUpperCase() || "?"}
+                    </div>
+                  )}
+                  <span className="font-serif text-[16px] sm:text-[18px] leading-none whitespace-nowrap">{displayName}</span>
                 </div>
+                <SectionTabs current={section} onChange={setSection} />
               </div>
-              <div className="flex flex-col sm:items-end gap-1">
-                <span className="font-mono text-[11px] tracking-[0.12em] uppercase text-ink-3">Hoy</span>
-                <span className="font-mono text-[13px]">{todayLabel}</span>
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <SectionTabs current={section} onChange={setSection} />
+              {/* Fade-out indicator on the right edge — hints at scrollable content on small screens */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-paper to-transparent sm:hidden"
+              />
             </div>
           </div>
 
@@ -208,43 +245,36 @@ function App() {
           </div>
 
           {/* Logout confirm */}
-          {showLogoutConfirm && (
-            <div className="fixed inset-0 z-50 bg-ink/55 backdrop-blur-sm flex items-center justify-center px-3 py-4">
-              <div className="w-full max-w-sm rounded-[18px] border border-ink/10 bg-paper p-6 shadow-xl">
-                <h3 className="font-serif text-[28px] leading-none">Cerrar sesión</h3>
-                <p className="text-sm text-ink-3 mt-2">¿Quieres cerrar tu sesión?</p>
-                <div className="mt-6 flex justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowLogoutConfirm(false)}
-                    className={buttonClassName({ variant: "ghost", size: "sm" })}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className={buttonClassName({ variant: "danger", size: "sm" })}
-                  >
-                    Sí, salir
-                  </button>
-                </div>
-              </div>
+          <Dialog
+            open={showLogoutConfirm}
+            onClose={() => setShowLogoutConfirm(false)}
+            title="Cerrar sesión"
+            panelClassName="max-w-sm p-6"
+          >
+            <p className="text-sm text-ink-3 mt-2">¿Quieres cerrar tu sesión?</p>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowLogoutConfirm(false)}
+                className={buttonClassName({ variant: "ghost", size: "sm" })}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className={buttonClassName({ variant: "danger", size: "sm" })}
+              >
+                Sí, salir
+              </button>
             </div>
-          )}
+          </Dialog>
         </>
       ) : (
         <AuthPanel onAuthenticated={handleAuthenticated} />
       )}
     </div>
   );
-}
-
-function getWeekNumber(date) {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
 }
 
 export default App;

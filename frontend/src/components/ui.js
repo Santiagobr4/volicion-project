@@ -1,15 +1,34 @@
 // Design system — Tailwind utility classes matching the Volicion editorial style
+// Naming convention: every export is a Tailwind classname (string) or a function returning one.
 
-export const eyebrow =
+export const focusRingClassName =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/30 focus-visible:ring-offset-2 focus-visible:ring-offset-paper";
+
+export const eyebrowClassName =
   "font-mono text-[11px] tracking-[0.12em] uppercase text-ink-3";
 
-export const tDisplay =
-  "font-serif font-normal leading-[0.95] tracking-[-0.02em]";
+export const labelClassName =
+  "font-mono text-[11px] tracking-[0.10em] uppercase text-ink-3";
 
-export const card =
+export const helpTextClassName =
+  "text-sm leading-6 text-ink-3";
+
+export const h1ClassName =
+  "font-serif text-[length:var(--text-h1)] leading-[0.98] tracking-[-0.025em]";
+
+export const h2ClassName =
+  "font-serif text-[length:var(--text-h2)] leading-[1.1] tracking-[-0.02em]";
+
+export const h3ClassName =
+  "font-serif text-[length:var(--text-h3)] leading-[1.2] tracking-[-0.02em]";
+
+export const cardClassName =
+  "bg-paper border border-ink/10 rounded-[14px] p-5";
+
+export const cardLgClassName =
   "bg-paper border border-ink/10 rounded-[18px] p-6 shadow-[0_1px_0_rgba(26,24,20,0.04),0_12px_40px_-20px_rgba(26,24,20,0.18)]";
 
-export const cardFlat =
+export const cardFlatClassName =
   "bg-paper-2 border border-transparent rounded-[18px] p-6";
 
 export const panelShellClassName =
@@ -23,12 +42,6 @@ export const modalPanelClassName =
 
 export const inputClassName =
   "w-full bg-transparent border-0 border-b border-ink/22 py-2.5 font-serif text-[22px] text-ink placeholder:text-ink-4 placeholder:font-serif outline-none focus:border-ink transition-colors";
-
-export const labelClassName =
-  "font-mono text-[11px] tracking-[0.10em] uppercase text-ink-3";
-
-export const helpTextClassName =
-  "text-sm leading-6 text-ink-3";
 
 export const buttonClassName = ({
   variant = "primary",
@@ -55,6 +68,7 @@ export const buttonClassName = ({
     "items-center justify-center gap-2 rounded-full font-medium font-sans cursor-pointer transition",
     sizeClass,
     variantClass,
+    focusRingClassName,
   ]
     .filter(Boolean)
     .join(" ");
@@ -69,6 +83,14 @@ export const segmentedButtonClassName = (selected) =>
     selected
       ? "bg-ink text-paper"
       : "bg-transparent text-ink-3 hover:text-ink",
+    focusRingClassName,
   ]
     .filter(Boolean)
     .join(" ");
+
+// --- Backwards-compatible aliases (do not rename external usage at once) ---
+export const eyebrow = eyebrowClassName;
+export const card = cardLgClassName;
+export const cardFlat = cardFlatClassName;
+export const tDisplay =
+  "font-serif font-normal leading-[0.95] tracking-[-0.02em]";

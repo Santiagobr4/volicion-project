@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { eyebrowClassName } from "./ui.js";
 
 export default function Footer() {
   const year = new Date().getFullYear();
@@ -19,17 +20,17 @@ export default function Footer() {
           </div>
 
           <div>
-            <h6 className="font-mono text-[11px] tracking-[0.12em] uppercase text-ink-4 mb-3.5">
+            <h6 className={`${eyebrowClassName} mb-3.5`}>
               Producto
             </h6>
             <div className="flex flex-col gap-1">
               <Link to="/" className="py-1 text-ink-2 hover:text-ink transition-colors">Inicio</Link>
-              <a href="#" className="py-1 text-ink-2 hover:text-ink transition-colors">Cómo funciona</a>
+              <Link to="/how-it-works" className="py-1 text-ink-2 hover:text-ink transition-colors">Cómo funciona</Link>
             </div>
           </div>
 
           <div>
-            <h6 className="font-mono text-[11px] tracking-[0.12em] uppercase text-ink-4 mb-3.5">
+            <h6 className={`${eyebrowClassName} mb-3.5`}>
               Legal
             </h6>
             <div className="flex flex-col gap-1">
@@ -40,7 +41,7 @@ export default function Footer() {
           </div>
 
           <div>
-            <h6 className="font-mono text-[11px] tracking-[0.12em] uppercase text-ink-4 mb-3.5">
+            <h6 className={`${eyebrowClassName} mb-3.5`}>
               Contacto
             </h6>
             <div className="flex flex-col gap-1">

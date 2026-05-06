@@ -7,13 +7,15 @@
   --paper-3:     #E6E4DC;
   --ink:         #161513;
   --ink-2:       #36332E;
-  --ink-3:       #66625A;
-  --ink-4:       #9A968D;
+  --ink-3:       #5A5650;
+  --ink-4:       #807A6E;
   --lime:        #C8F050;
   --lime-ink:    #2A3500;
   --signal:      #E0432A;
   --signal-soft: #FBE4DE;
   --gold:        #D4A53A;
+  --rule:        rgba(22, 21, 19, 0.10);
+  --rule-strong: rgba(22, 21, 19, 0.22);
 }
 
 .dark {
@@ -22,9 +24,11 @@
   --paper-3:     #25241D;
   --ink:         #F2EDE2;
   --ink-2:       #C8C2B5;
-  --ink-3:       #8E887C;
-  --ink-4:       #5C574E;
+  --ink-3:       #A39C8E;
+  --ink-4:       #6E685C;
   --signal-soft: rgba(224, 67, 42, 0.16);
+  --rule:        rgba(242, 237, 226, 0.10);
+  --rule-strong: rgba(242, 237, 226, 0.22);
 }
 
 /* Map tokens to Tailwind color/font utilities */
@@ -41,10 +45,23 @@
   --color-signal:      var(--signal);
   --color-signal-soft: var(--signal-soft);
   --color-gold:        var(--gold);
+  --color-rule:        var(--rule);
+  --color-rule-strong: var(--rule-strong);
 
   --font-family-serif: "Instrument Serif", Georgia, serif;
   --font-family-sans:  "Geist", system-ui, sans-serif;
   --font-family-mono:  "JetBrains Mono", ui-monospace, monospace;
+
+  /* Heading scale — fluido entre 360px y 1240px */
+  --text-h1: clamp(2.25rem, 1.5rem + 3vw, 3.5rem);
+  --text-h2: clamp(1.75rem, 1.25rem + 1.5vw, 2.25rem);
+  --text-h3: clamp(1.375rem, 1.125rem + 1vw, 1.75rem);
+  --text-eyebrow: 0.6875rem; /* 11px */
+
+  /* Radii */
+  --radius-card: 14px;
+  --radius-card-lg: 18px;
+  --radius-pill: 9999px;
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -102,3 +119,30 @@ html, body {
   100% { opacity: 0.18; transform: scale(1); }
 }
 .day-cell-pulse { animation: dayCellPulse 600ms ease-out; }
+
+/* Hide scrollbar but keep scroll functionality */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Heatmap cells — matches reference: lime ramp + ink for highest level */
+.heat-cell {
+  aspect-ratio: 1;
+  border-radius: 3px;
+  background: var(--paper-2);
+  transition: transform 120ms;
+}
+.heat-cell[data-level="1"] { background: rgba(200,240,80,0.35); }
+.heat-cell[data-level="2"] { background: rgba(200,240,80,0.60); }
+.heat-cell[data-level="3"] { background: var(--lime); }
+.heat-cell[data-level="4"] { background: var(--ink); }
+.heat-cell:hover { transform: scale(1.3); position: relative; z-index: 2; }
+
+/* Respect user preference: minimize motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

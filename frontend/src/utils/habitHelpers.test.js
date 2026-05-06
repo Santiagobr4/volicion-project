@@ -16,9 +16,9 @@ describe("habitHelpers", () => {
   });
 
   it("maps status to chip styles", () => {
-    expect(getStatusStyle("done")).toContain("bg-ink");
+    expect(getStatusStyle("done")).toContain("bg-lime-ink");
     expect(getStatusStyle("missed")).toContain("bg-signal-soft");
     expect(getStatusStyle("skip")).toContain("bg-paper-3");
-    expect(getStatusStyle("pending")).toContain("bg-paper-2");
+    expect(getStatusStyle("pending")).toContain("border-ink/22");
   });
 });

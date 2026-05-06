@@ -1,64 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { getLeaderboard } from "../api/habits";
-import {
-  formatPercent,
-  getCompletionLevel,
-  getCompletionTailwindClass,
-} from "../utils/completion";
 import LoadingSpinner from "./LoadingSpinner";
-import defaultAvatar from "../assets/default-avatar.svg";
+import { eyebrowClassName, segmentedButtonClassName, segmentedContainerClassName } from "./ui.js";
 
-const METRIC_COPY = {
-  daily: {
-    rankLabel: "rendimiento diario",
-    context: "hoy",
-    trendLabel: "ritmo del día",
-    tieHint: "el día aún está abierto",
-    noSignal:
-      "Aún no hay suficiente actividad de hoy para definir un líder diario.",
-  },
-  weekly: {
-    rankLabel: "rendimiento semanal",
-    context: "esta semana",
-    trendLabel: "consistencia semanal",
-    tieHint: "la semana todavía se puede mover",
-    noSignal:
-      "Todavía no hay una tendencia semanal suficiente para marcar liderazgo.",
-  },
-  historical: {
-    rankLabel: "rendimiento histórico",
-    context: "histórico acumulado",
-    trendLabel: "constancia de largo plazo",
-    tieHint: "el histórico cambia de forma gradual",
-    noSignal:
-      "Aún no hay base histórica suficiente para comparar la constancia entre usuarios.",
-  },
-};
+const PERIODS = [
+  { key: "daily",      label: "Diario" },
+  { key: "weekly",     label: "Semanal" },
+  { key: "monthly",    label: "Mensual" },
+  { key: "historical", label: "Histórico" },
+];
 
-const getRankLabel = (index) => {
-  if (index === 0) return "#1";
-  if (index === 1) return "#2";
-  if (index === 2) return "#3";
-  return `#${index + 1}`;
-};
-
-const getRowStyle = (index) => {
-  if (index === 0) {
-    return "bg-amber-50/80 dark:bg-amber-950/20 border-amber-200/80 dark:border-amber-700/50";
-  }
-  if (index === 1) {
-    return "bg-slate-100/90 dark:bg-slate-800/70 border-slate-300/70 dark:border-slate-600/70";
-  }
-  if (index === 2) {
-    return "bg-orange-50/80 dark:bg-orange-950/20 border-orange-200/80 dark:border-orange-700/50";
-  }
-  return "bg-white/80 dark:bg-slate-900/50 border-slate-200/70 dark:border-slate-700/60";
-};
-
-const getPlacementBadge = (index) => {
-  if (index === 0) return "Top 1";
-  if (index <= 2) return "Top 3";
-  return null;
+const getMetricValue = (row, key) => {
+  if (key === "daily")      return row.daily_completion;
+  if (key === "weekly")     return row.weekly_completion;
+  if (key === "monthly")    return row.monthly_completion;
+  return row.historical_completion;
 };
 
 const isZeroEngagement = (row) =>
@@ -68,244 +24,82 @@ const isZeroEngagement = (row) =>
   (row?.historical_completion ?? 0) === 0;
 
 const formatLeaderNames = (leaders) => {
-  if (!leaders.length) return "";
+  if (!leaders.length) return "—";
   if (leaders.length === 1) return leaders[0].display_name;
-  if (leaders.length === 2) {
-    return `${leaders[0].display_name} y ${leaders[1].display_name}`;
-  }
+  if (leaders.length === 2) return `${leaders[0].display_name} y ${leaders[1].display_name}`;
   return `${leaders[0].display_name}, ${leaders[1].display_name} y otros`;
 };
 
-const getMetricValue = (row, metricKey) => {
-  if (metricKey === "daily") return row.daily_completion;
-  if (metricKey === "weekly") return row.weekly_completion;
-  return row.historical_completion;
-};
-
-const buildHighlightInsight = ({
-  metricKey,
-  title,
-  highlight,
-  perfectCount,
-  ranking,
-}) => {
-  const copy = METRIC_COPY[metricKey] || METRIC_COPY.historical;
-
-  const perfectNote =
-    perfectCount > 0 ? ` Ya existe un 100% en ${copy.context}.` : "";
-
-  const noPerfectNote = ` Aún no hay 100% en ${copy.context}.`;
-
-  const score = highlight?.score;
+/**
+ * Build a context-aware narrative for the leader card based on:
+ * - the metric (daily / weekly / historical) — each has its own voice
+ * - score level (100, ≥80, ≥50, <50)
+ * - tie size (solo, 2-tied, all-tied)
+ * - gap to the chaser (close <5pts vs wide >15pts)
+ */
+const buildLeaderNote = (metric, highlight, ranking) => {
   const leaders = highlight?.leaders || [];
-  const totalParticipants = highlight?.total || 0;
+  const score = highlight?.score;
+  const total = highlight?.total ?? 0;
 
+  if (!leaders.length || score === null || score === undefined) {
+    if (metric === "daily")      return "Día sin actividad suficiente. Marca algo y reabres la pelea.";
+    if (metric === "weekly")     return "La semana aún no muestra tendencia.";
+    return "Aún no hay base histórica para un líder claro.";
+  }
+
+  const allTied = leaders.length === total && total > 1;
+  const sharedTie = leaders.length > 1 && !allTied;
+  const leaderUsernames = new Set(leaders.map((l) => l.username));
   const scoredRows = (ranking || [])
-    .filter((row) => getMetricValue(row, metricKey) !== null)
-    .sort(
-      (a, b) => getMetricValue(b, metricKey) - getMetricValue(a, metricKey),
-    );
+    .filter((row) => leaderUsernames.has(row.username) === false)
+    .map((row) => {
+      if (metric === "daily")      return row.daily_completion;
+      if (metric === "weekly")     return row.weekly_completion;
+      return row.historical_completion;
+    })
+    .filter((value) => value !== null && value !== undefined);
+  const chaserScore = scoredRows.length ? Math.max(...scoredRows) : null;
+  const gap = chaserScore !== null ? score - chaserScore : null;
+  const lead = leaders[0].display_name;
 
-  const leaderNameSet = new Set(leaders.map((row) => row.username));
-  const firstChaser = scoredRows.find(
-    (row) => !leaderNameSet.has(row.username),
-  );
-  const chaserScore = firstChaser
-    ? getMetricValue(firstChaser, metricKey)
-    : null;
-  const leadGap =
-    chaserScore !== null && score !== null && score !== undefined
-      ? score - chaserScore
-      : null;
-
-  if (score === null || score === undefined || totalParticipants === 0) {
-    return {
-      metricKey,
-      title,
-      text: copy.noSignal,
-      tone: "neutral",
-    };
+  // Daily — short-window stakes, high volatility
+  if (metric === "daily") {
+    if (allTied && score === 100)   return "Día perfecto para todos. El siguiente check decide.";
+    if (allTied)                    return `Empate general en ${score}%. La aguja no se ha movido hoy.`;
+    if (sharedTie && score === 100) return `${formatLeaderNames(leaders)} cerraron el día perfecto. Nadie soltó.`;
+    if (sharedTie)                  return `${formatLeaderNames(leaders)} comparten la cima del día con ${score}%.`;
+    if (score === 100 && chaserScore === null) return `${lead} cerró el día perfecto. Nadie más llegó.`;
+    if (score === 100)              return `${lead} cerró el día perfecto. ${chaserScore}% fue lo más cerca que hubo.`;
+    if (gap !== null && gap >= 15)  return `${lead} abrió distancia clara hoy. El segundo viene a ${chaserScore}%.`;
+    if (gap !== null && gap <= 5)   return `${lead} encabeza con ${score}%, pero el segundo va a ${chaserScore}%. Cualquier check mueve esto.`;
+    if (score < 50)                 return `Día corto para todos. ${lead} encabeza con apenas ${score}%.`;
+    return `${lead} lidera el día con ${score}%. La carrera sigue abierta.`;
   }
 
-  if (leaders.length === totalParticipants) {
-    if (score === 100) {
-      const allPerfectTextByMetric = {
-        daily:
-          "Hoy todos están en 100% diario. El desempate llegará con el siguiente registro del día.",
-        weekly:
-          "Todos sostienen 100% semanal hasta ahora. Cualquier cambio en la semana puede mover el orden.",
-        historical:
-          "Todos mantienen 100% histórico acumulado. Solo una variación de constancia romperá este empate.",
-      };
-      return {
-        metricKey,
-        title,
-        text:
-          allPerfectTextByMetric[metricKey] ||
-          `Todos están empatados al 100% en ${copy.context}. ${copy.tieHint}.`,
-        tone: "neutral",
-      };
-    }
-
-    const allTiedTextByMetric = {
-      daily: `Hoy todos están empatados en ${formatPercent(score)} de cumplimiento diario. El próximo check-in puede mover posiciones.${perfectNote}`,
-      weekly: `Esta semana todos van en ${formatPercent(score)} de cumplimiento semanal. Un par de registros puede cambiar el liderazgo.${perfectNote}`,
-      historical: `Todos acumulan ${formatPercent(score)} en cumplimiento histórico. El orden cambiará cuando se consolide nueva constancia.${perfectNote}`,
-    };
-
-    return {
-      metricKey,
-      title,
-      text:
-        allTiedTextByMetric[metricKey] ||
-        `Todos están empatados en ${formatPercent(score)} para ${copy.rankLabel}. Un pequeño avance puede cambiar el orden.${perfectNote}`,
-      tone: "neutral",
-    };
+  // Weekly — medium-window, narrative of the week
+  if (metric === "weekly") {
+    if (allTied && score === 100)   return "Todos al 100% esta semana. Cualquier día rompe el empate.";
+    if (allTied)                    return `Semana pareja: todos en ${score}%. El cierre va a definir.`;
+    if (sharedTie && score === 100) return `${formatLeaderNames(leaders)} no han fallado un solo día.`;
+    if (sharedTie)                  return `${formatLeaderNames(leaders)} comparten el liderato semanal con ${score}%.`;
+    if (score === 100)              return `${lead} no ha fallado un día esta semana.`;
+    if (gap !== null && gap >= 15)  return `${lead} ya tomó distancia esta semana. Difícil de alcanzar antes del domingo.`;
+    if (gap !== null && gap <= 5)   return `${lead} encabeza con ventaja corta. La semana se decide en el cierre.`;
+    if (score < 50)                 return `Semana baja para todos. ${lead} sostiene el liderato con ${score}%.`;
+    return `${lead} encabeza la semana con ${score}%. Hay margen para moverse.`;
   }
 
-  if (leaders.length > 1) {
-    if (score === 100) {
-      const sharedPerfectTextByMetric = {
-        daily: `${formatLeaderNames(leaders)} comparten el primer lugar diario con 100% hoy.`,
-        weekly: `${formatLeaderNames(leaders)} están igualados en el liderato semanal con 100%.`,
-        historical: `${formatLeaderNames(leaders)} comparten la cima histórica con 100% acumulado.`,
-      };
-      return {
-        metricKey,
-        title,
-        text:
-          sharedPerfectTextByMetric[metricKey] ||
-          `${formatLeaderNames(leaders)} comparten liderato perfecto en ${copy.context}.`,
-        tone: "info",
-      };
-    }
-
-    const sharedLeadTextByMetric = {
-      daily: `${formatLeaderNames(leaders)} están empatados en ${formatPercent(score)} en el ranking diario.${perfectNote}`,
-      weekly: `${formatLeaderNames(leaders)} comparten ${formatPercent(score)} en la clasificación semanal.${perfectNote}`,
-      historical: `${formatLeaderNames(leaders)} están igualados con ${formatPercent(score)} en el histórico de cumplimiento.${perfectNote}`,
-    };
-
-    return {
-      metricKey,
-      title,
-      text:
-        sharedLeadTextByMetric[metricKey] ||
-        `${formatLeaderNames(leaders)} están empatados en ${formatPercent(score)} de ${copy.rankLabel}.${perfectNote}`,
-      tone: "info",
-    };
-  }
-
-  if (score === 100) {
-    if (firstChaser && chaserScore !== null) {
-      const perfectLeadWithChaserByMetric = {
-        daily: `${leaders[0].display_name} lidera hoy con 100% diario. ${firstChaser.display_name} persigue con ${formatPercent(chaserScore)} en el cierre del día.`,
-        weekly: `${leaders[0].display_name} marca 100% semanal. ${firstChaser.display_name} va con ${formatPercent(chaserScore)} y sigue en carrera esta semana.`,
-        historical: `${leaders[0].display_name} lidera el histórico con 100%. ${firstChaser.display_name} aparece detrás con ${formatPercent(chaserScore)} de constancia acumulada.`,
-      };
-      return {
-        metricKey,
-        title,
-        text:
-          perfectLeadWithChaserByMetric[metricKey] ||
-          `${leaders[0].display_name} lidera ${copy.context} con 100%. ${firstChaser.display_name} le sigue con ${formatPercent(chaserScore)} en ${copy.trendLabel}.`,
-        tone: "good",
-      };
-    }
-
-    const perfectSoloLeadByMetric = {
-      daily: `${leaders[0].display_name} domina el día en solitario con 100% de cumplimiento diario.`,
-      weekly: `${leaders[0].display_name} se mantiene solo en la cima semanal con 100%.`,
-      historical: `${leaders[0].display_name} ocupa en solitario el primer lugar histórico con 100%.`,
-    };
-
-    return {
-      metricKey,
-      title,
-      text:
-        perfectSoloLeadByMetric[metricKey] ||
-        `${leaders[0].display_name} lidera en solitario con 100% de ${copy.rankLabel}.`,
-      tone: "good",
-    };
-  }
-
-  if (leadGap !== null && leadGap <= 5) {
-    const closeLeadTextByMetric = {
-      daily: `${leaders[0].display_name} va primero hoy con ${formatPercent(score)} diario, pero la diferencia es mínima.${perfectCount > 0 ? perfectNote : noPerfectNote}`,
-      weekly: `${leaders[0].display_name} encabeza la semana con ${formatPercent(score)} y ventaja corta.${perfectCount > 0 ? perfectNote : noPerfectNote}`,
-      historical: `${leaders[0].display_name} lidera el histórico con ${formatPercent(score)}, con margen muy ajustado.${perfectCount > 0 ? perfectNote : noPerfectNote}`,
-    };
-    return {
-      metricKey,
-      title,
-      text:
-        closeLeadTextByMetric[metricKey] ||
-        `${leaders[0].display_name} lidera ${copy.context} con ${formatPercent(score)}, con ventaja mínima.${perfectCount > 0 ? perfectNote : noPerfectNote}`,
-      tone: "good",
-    };
-  }
-
-  if (leadGap !== null && leadGap >= 15) {
-    const wideLeadTextByMetric = {
-      daily: `${leaders[0].display_name} abrió una diferencia clara hoy con ${formatPercent(score)} en diario.${perfectCount > 0 ? perfectNote : noPerfectNote}`,
-      weekly: `${leaders[0].display_name} ya tomó distancia en la semana con ${formatPercent(score)} de cumplimiento semanal.${perfectCount > 0 ? perfectNote : noPerfectNote}`,
-      historical: `${leaders[0].display_name} marca una brecha sólida en el histórico con ${formatPercent(score)} acumulado.${perfectCount > 0 ? perfectNote : noPerfectNote}`,
-    };
-    return {
-      metricKey,
-      title,
-      text:
-        wideLeadTextByMetric[metricKey] ||
-        `${leaders[0].display_name} lidera ${copy.context} con ${formatPercent(score)} y ya abrió diferencia en ${copy.rankLabel}.${perfectCount > 0 ? perfectNote : noPerfectNote}`,
-      tone: "good",
-    };
-  }
-
-  const defaultLeadTextByMetric = {
-    daily: `${leaders[0].display_name} lidera hoy con ${formatPercent(score)} en cumplimiento diario.${perfectCount > 0 ? perfectNote : noPerfectNote}`,
-    weekly: `${leaders[0].display_name} encabeza esta semana con ${formatPercent(score)} en cumplimiento semanal.${perfectCount > 0 ? perfectNote : noPerfectNote}`,
-    historical: `${leaders[0].display_name} va al frente del histórico con ${formatPercent(score)} de constancia acumulada.${perfectCount > 0 ? perfectNote : noPerfectNote}`,
-  };
-
-  return {
-    metricKey,
-    title,
-    text:
-      defaultLeadTextByMetric[metricKey] ||
-      `${leaders[0].display_name} lidera ${copy.context} con ${formatPercent(score)} en ${copy.rankLabel}.${perfectCount > 0 ? perfectNote : noPerfectNote}`,
-    tone: "good",
-  };
-};
-
-const insightCardClass = {
-  daily:
-    "border-amber-200/90 dark:border-amber-700/70 bg-linear-to-br from-amber-50 to-white dark:from-amber-950/20 dark:to-slate-900",
-  weekly:
-    "border-sky-200/90 dark:border-sky-700/70 bg-linear-to-br from-sky-50 to-white dark:from-sky-950/20 dark:to-slate-900",
-  historical:
-    "border-emerald-200/90 dark:border-emerald-700/70 bg-linear-to-br from-emerald-50 to-white dark:from-emerald-950/20 dark:to-slate-900",
-  neutral:
-    "border-slate-200 dark:border-slate-700 bg-slate-50/90 dark:bg-slate-800/70",
-};
-
-const insightBadgeClass = {
-  daily: "text-amber-700 dark:text-amber-300",
-  weekly: "text-sky-700 dark:text-sky-300",
-  historical: "text-emerald-700 dark:text-emerald-300",
-  neutral: "text-slate-600 dark:text-slate-300",
-};
-
-const getMetricChipClass = (value) => {
-  if (value >= 90) {
-    return "border-emerald-200/90 bg-emerald-50/90 dark:border-emerald-700/70 dark:bg-emerald-950/20";
-  }
-  if (value >= 70) {
-    return "border-sky-200/90 bg-sky-50/90 dark:border-sky-700/70 dark:bg-sky-950/20";
-  }
-  if (value >= 40) {
-    return "border-amber-200/90 bg-amber-50/90 dark:border-amber-700/70 dark:bg-amber-950/20";
-  }
-  return "border-rose-200/90 bg-rose-50/90 dark:border-rose-700/70 dark:bg-rose-950/20";
+  // Historical — long-window, slow-moving
+  if (allTied && score === 100)   return "Empate histórico en 100%. Solo una falla romperá esto.";
+  if (allTied)                    return `Empate histórico en ${score}%. La diferencia va a venir de constancia, no de un día.`;
+  if (sharedTie && score === 100) return `${formatLeaderNames(leaders)} comparten un histórico perfecto.`;
+  if (sharedTie)                  return `${formatLeaderNames(leaders)} llevan el histórico parejo en ${score}%.`;
+  if (score === 100)              return `${lead} no ha tenido un día débil en todo el histórico.`;
+  if (gap !== null && gap >= 15)  return `${lead} se separó del resto en lo histórico. La constancia ya pesa.`;
+  if (gap !== null && gap <= 5)   return `${lead} lidera el histórico con margen mínimo. Cualquier semana mala lo cambia.`;
+  if (score < 50)                 return `Aún nadie consolida un histórico fuerte. ${lead} encabeza con ${score}%.`;
+  return `${lead} acumula ${score}% en el histórico. La distancia se construye de a poco.`;
 };
 
 export default function RankingPanel({ refreshVersion = 0 }) {
@@ -313,86 +107,68 @@ export default function RankingPanel({ refreshVersion = 0 }) {
   const [highlights, setHighlights] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [showAllMobileRanks, setShowAllMobileRanks] = useState(false);
+  const [period, setPeriod] = useState("weekly");
 
   useEffect(() => {
-    let isCancelled = false;
-
+    const controller = new AbortController();
     const loadRanking = async () => {
       try {
-        if (!isCancelled) {
-          setLoading(true);
-          setError("");
-        }
-        const payload = await getLeaderboard();
-        if (!isCancelled) {
+        setLoading(true);
+        setError("");
+        const payload = await getLeaderboard({ signal: controller.signal });
+        if (!controller.signal.aborted) {
           setRanking(payload.results || []);
           setHighlights(payload.highlights || null);
-          setShowAllMobileRanks(false);
         }
-      } catch {
-        if (!isCancelled) {
-          setError("No pudimos cargar la clasificación.");
-        }
+      } catch (err) {
+        if (controller.signal.aborted || err?.name === "CanceledError" || err?.code === "ERR_CANCELED") return;
+        setError("No pudimos cargar la clasificación.");
       } finally {
-        if (!isCancelled) {
-          setLoading(false);
-        }
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
-
     loadRanking();
-
-    return () => {
-      isCancelled = true;
-    };
+    return () => controller.abort();
   }, [refreshVersion]);
 
   const visibleRanking = useMemo(
     () => ranking.filter((row) => !isZeroEngagement(row)),
     [ranking],
   );
+
+  const sortedRanking = useMemo(
+    () => [...visibleRanking].sort((a, b) => (getMetricValue(b, period) ?? -1) - (getMetricValue(a, period) ?? -1)),
+    [visibleRanking, period],
+  );
+
+  const leaderCards = useMemo(() => [
+    {
+      eyebrow: "Líder diario",
+      name: formatLeaderNames(highlights?.daily?.leaders || []),
+      pct: highlights?.daily?.score ?? null,
+      note: buildLeaderNote("daily", highlights?.daily, visibleRanking),
+      dark: true,
+    },
+    {
+      eyebrow: "Líder semanal",
+      name: formatLeaderNames(highlights?.weekly?.leaders || []),
+      pct: highlights?.weekly?.score ?? null,
+      note: buildLeaderNote("weekly", highlights?.weekly, visibleRanking),
+    },
+    {
+      eyebrow: "Líder histórico",
+      name: formatLeaderNames(highlights?.historical?.leaders || []),
+      pct: highlights?.historical?.score ?? null,
+      note: buildLeaderNote("historical", highlights?.historical, visibleRanking),
+    },
+  ], [highlights, visibleRanking]);
+
   const hiddenZeroCount = Math.max(ranking.length - visibleRanking.length, 0);
-
-  const rankingInsights = useMemo(() => {
-    const dailyPerfect = visibleRanking.filter(
-      (row) => row.daily_completion === 100,
-    ).length;
-    const weeklyPerfect = visibleRanking.filter(
-      (row) => row.weekly_completion === 100,
-    ).length;
-    const historicalPerfect = visibleRanking.filter(
-      (row) => row.historical_completion === 100,
-    ).length;
-
-    return [
-      buildHighlightInsight({
-        metricKey: "daily",
-        title: "Líder diario",
-        highlight: highlights?.daily,
-        perfectCount: dailyPerfect,
-        ranking: visibleRanking,
-      }),
-      buildHighlightInsight({
-        metricKey: "weekly",
-        title: "Líder semanal",
-        highlight: highlights?.weekly,
-        perfectCount: weeklyPerfect,
-        ranking: visibleRanking,
-      }),
-      buildHighlightInsight({
-        metricKey: "historical",
-        title: "Líder histórico de cumplimiento",
-        highlight: highlights?.historical,
-        perfectCount: historicalPerfect,
-        ranking: visibleRanking,
-      }),
-    ];
-  }, [highlights, visibleRanking]);
+  const activePeriodLabel = PERIODS.find((p) => p.key === period)?.label ?? "";
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-slate-200/80 bg-white/90 dark:bg-slate-900/80 dark:border-slate-700 p-6 shadow-sm">
+      <div className="max-w-[1240px] mx-auto px-4 sm:px-8 pt-6 pb-10">
         <LoadingSpinner label="Cargando clasificación..." />
       </div>
     );
@@ -400,282 +176,214 @@ export default function RankingPanel({ refreshVersion = 0 }) {
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 text-red-600 p-6 dark:bg-red-950/30 dark:border-red-700">
-        {error}
+      <div className="max-w-[1240px] mx-auto px-4 sm:px-8 pt-6 pb-10">
+        <div className="rounded-[14px] border border-signal/25 bg-signal-soft px-4 py-3 text-sm text-signal">
+          {error}
+        </div>
       </div>
     );
   }
 
-  const mobileRanking = showAllMobileRanks
-    ? visibleRanking
-    : visibleRanking.slice(0, 3);
-
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white/90 dark:bg-slate-900/80 dark:border-slate-700 p-3 sm:p-4 md:p-6 shadow-sm">
-      <div className="mb-6 rounded-2xl border border-slate-200/80 dark:border-slate-700 bg-linear-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-3 sm:p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-xl font-semibold">Clasificación</h2>
+    <div className="max-w-[1240px] mx-auto px-4 sm:px-8 pt-6 pb-10">
 
-          <span className="text-xs font-semibold uppercase tracking-wide rounded-full px-2.5 py-1 bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">
-            Período actual
-          </span>
-        </div>
-
-        <p className="text-sm text-slate-500 dark:text-slate-300 mt-2">
-          Mira quién viene sosteniendo mejor el ritmo diario, semanal y mensual.
-        </p>
-        <p className="text-xs text-slate-500 dark:text-slate-300 mt-2">
-          Orden global: primero diario, luego semanal, después mensual y por
-          último histórico.
+      {/* Page head */}
+      <div className="mb-8">
+        <span className={eyebrowClassName}>
+          Clasificación · Período actual
+        </span>
+        <h1 className="font-serif text-[length:var(--text-h1)] leading-tight tracking-[-0.02em] mt-2">
+          Quién sostiene<br /><em>el ritmo.</em>
+        </h1>
+        <p className="text-[15px] sm:text-[17px] text-ink-2 max-w-[560px] leading-[1.55] mt-2">
+          Orden global: primero diario, luego semanal, mensual y por último histórico. La consistencia gana, no los picos.
         </p>
       </div>
 
-      <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-3">
-        {rankingInsights.map((insight) => (
-          <div
-            key={`${insight.title}-${insight.text}`}
-            className={`rounded-2xl border p-4 shadow-sm ${insightCardClass[insight.metricKey] || insightCardClass.neutral}`}
-          >
-            <p
-              className={`text-[11px] font-semibold uppercase tracking-[0.2em] ${insightBadgeClass[insight.metricKey] || insightBadgeClass.neutral}`}
+      {/* Period tabs + count */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
+        <div className={`${segmentedContainerClassName} max-w-full overflow-x-auto no-scrollbar`}>
+          {PERIODS.map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => setPeriod(p.key)}
+              className={segmentedButtonClassName(period === p.key)}
             >
-              {insight.title}
-            </p>
-            <p className="text-sm mt-2 leading-6 opacity-90">{insight.text}</p>
-          </div>
-        ))}
+              {p.label}
+            </button>
+          ))}
+        </div>
+        <span className="font-mono text-[11px] text-ink-3">
+          {visibleRanking.length} usuario{visibleRanking.length !== 1 ? "s" : ""}
+        </span>
       </div>
 
-      {visibleRanking.length === 0 && (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 mb-4 bg-slate-50/70 dark:bg-slate-800/70 text-sm text-slate-600 dark:text-slate-300">
-          Aún no hay participantes con actividad suficiente para mostrar una
-          clasificación útil.
+      {/* Leader cards */}
+      {leaderCards.some((c) => c.pct !== null) && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-10">
+          {leaderCards.map((card, i) => {
+            // Featured card uses fixed colors that don't swap in dark mode.
+            // #161513 = ink, #FAFAF7 = paper. Hardcoded so the dark card stays
+            // dark on either theme (otherwise --ink/--paper invert).
+            const featured = card.dark;
+            return (
+              <div
+                key={i}
+                className="rounded-[14px] border p-5"
+                style={
+                  featured
+                    ? { background: "#161513", color: "#FAFAF7", borderColor: "#161513" }
+                    : { borderColor: "var(--paper-3)" }
+                }
+              >
+                <span
+                  className="font-mono text-[10px] tracking-[0.10em] uppercase"
+                  style={{ color: featured ? "rgba(250,250,247,0.55)" : "var(--ink-4)" }}
+                >
+                  {card.eyebrow}
+                </span>
+                <div
+                  className="font-serif text-[28px] sm:text-[32px] lg:text-[36px] leading-tight mt-3 mb-1 break-words"
+                  style={{ color: featured ? "#FAFAF7" : "var(--ink)" }}
+                >
+                  {card.name}
+                </div>
+                <div className="flex items-baseline gap-2 mb-3">
+                  <span
+                    className="font-serif text-[24px] sm:text-[28px]"
+                    style={{ color: featured ? "var(--lime)" : "var(--ink)" }}
+                  >
+                    {card.pct !== null ? `${card.pct}%` : "—"}
+                  </span>
+                  <span
+                    className="font-mono text-[10px] tracking-[0.08em] uppercase"
+                    style={{ color: featured ? "rgba(250,250,247,0.55)" : "var(--ink-3)" }}
+                  >
+                    cumplimiento
+                  </span>
+                </div>
+                <p
+                  className="text-[13px] leading-[1.5]"
+                  style={{ color: featured ? "rgba(250,250,247,0.75)" : "var(--ink-2)" }}
+                >
+                  {card.note}
+                </p>
+              </div>
+            );
+          })}
         </div>
       )}
 
       {hiddenZeroCount > 0 && (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 mb-4 bg-slate-50/70 dark:bg-slate-800/70 text-sm text-slate-600 dark:text-slate-300">
-          {hiddenZeroCount} usuario{hiddenZeroCount === 1 ? "" : "s"} sin
-          actividad aún se ocultaron para que el ranking sea más útil.
+        <p className="font-mono text-[11px] text-ink-4 mb-6 tracking-[0.04em]">
+          + {hiddenZeroCount} usuario{hiddenZeroCount === 1 ? "" : "s"} sin actividad ocultados.
+        </p>
+      )}
+
+      {visibleRanking.length === 0 && (
+        <div className="border-l-2 border-ink/20 pl-4 py-1">
+          <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-3 mb-1.5">
+            Sin clasificación
+          </p>
+          <p className="font-serif text-[18px] leading-[1.3] text-ink">
+            Aún no hay participantes con actividad suficiente para mostrar una clasificación útil.
+          </p>
         </div>
       )}
 
-      {visibleRanking.length > 0 && (
-        <div className="md:hidden space-y-3 mb-4">
-          {mobileRanking.map((row, index) => {
-            const placementBadge = getPlacementBadge(index);
+      {/* Ranking table */}
+      {sortedRanking.length > 0 && (
+        <div className="max-w-full">
+          {/* Header row — single metric column matches the active period tab */}
+          <div className="grid gap-3 sm:gap-4 pb-3 border-b border-ink/20 mb-2 grid-cols-[36px_1fr_auto] sm:grid-cols-[48px_1fr_auto]">
+            <span className="font-mono text-[11px] tracking-[0.10em] uppercase text-ink-4">#</span>
+            <span className="font-mono text-[11px] tracking-[0.10em] uppercase text-ink-4">Usuario</span>
+            <span className="font-mono text-[11px] tracking-[0.10em] uppercase text-ink-4 text-right">
+              {activePeriodLabel}
+            </span>
+          </div>
+
+          {sortedRanking.map((row, idx) => {
+            const isTop1 = idx === 0;
+            const isTop3 = idx <= 2;
+            const tier = isTop1 ? "TOP 1" : isTop3 ? "TOP 3" : idx <= 9 ? "TOP 10" : null;
+            const val = getMetricValue(row, period);
+            const hasValue = val !== null && val !== undefined;
+            const isZero = hasValue && val === 0;
+            const isHigh = hasValue && val >= 50;
+            const valueColorClass = !hasValue || isZero ? "text-ink-4" : isHigh ? "text-ink" : "text-ink-2";
+
             return (
-              <article
-                key={`mobile-${row.username}-${index}`}
-                className={`rounded-xl border p-3 ${getRowStyle(index)}`}
+              <div
+                key={`${row.username}-${idx}`}
+                className={`relative grid gap-3 sm:gap-4 py-4 sm:py-5 border-b border-ink/8 fade-up items-center grid-cols-[36px_1fr_auto] sm:grid-cols-[48px_1fr_auto] ${
+                  row.is_current_user ? "before:absolute before:left-[-16px] before:top-2 before:bottom-2 before:w-[2px] before:bg-lime" : ""
+                }`}
+                style={{ animationDelay: `${idx * 40}ms` }}
               >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="inline-flex items-center justify-center min-w-9 h-8 rounded-lg border border-slate-300/80 dark:border-slate-600 bg-white/80 dark:bg-slate-900/80 text-sm font-semibold">
-                      {getRankLabel(index)}
-                    </span>
+                <div className={`font-serif leading-none ${isTop1 ? "text-[28px] sm:text-[32px]" : isTop3 ? "text-[22px] sm:text-[26px]" : "text-[18px] sm:text-[20px] text-ink-3"}`}>
+                  {String(idx + 1).padStart(2, "0")}
+                </div>
+
+                <div className="flex items-center gap-3 min-w-0">
+                  {row.avatar_file_url ? (
                     <img
-                      src={row.avatar_file_url || defaultAvatar}
-                      alt={row.display_name}
-                      className="w-9 h-9 rounded-full object-cover border border-slate-300 dark:border-slate-600"
+                      src={row.avatar_file_url}
+                      alt=""
+                      width={40}
+                      height={40}
+                      loading="lazy"
+                      decoding="async"
+                      className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover border border-ink/10 shrink-0"
                     />
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm truncate">
-                        {row.display_name}
-                      </p>
-                      <p className="text-xs text-slate-500 dark:text-slate-300 truncate">
-                        @{row.username}
-                      </p>
-                      {Number.isFinite(row.streak_current) &&
-                        row.streak_current > 0 && (
-                          <p className="text-[11px] text-slate-500 dark:text-slate-300 mt-0.5">
-                            Racha: {row.streak_current} d
-                          </p>
-                        )}
-                      {placementBadge && (
-                        <span className="mt-1 inline-flex rounded-full border border-slate-300/80 dark:border-slate-600 bg-white/70 dark:bg-slate-900/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                          {placementBadge}
+                  ) : (
+                    <div
+                      aria-hidden="true"
+                      className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-ink/10 shrink-0 flex items-center justify-center font-serif text-[16px] leading-none ${
+                        isTop1 ? "bg-ink text-paper" : "bg-paper-3 text-ink"
+                      }`}
+                    >
+                      {row.display_name?.[0]?.toUpperCase() || "?"}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-serif text-[18px] sm:text-[20px] leading-tight truncate">{row.display_name}</span>
+                      {row.is_current_user && (
+                        <span className="font-mono text-[9px] px-1.5 py-0.5 bg-lime text-lime-ink rounded-[3px] tracking-[0.08em] uppercase shrink-0">Tú</span>
+                      )}
+                      {tier && (
+                        <span
+                          className={`font-mono text-[9px] px-1.5 py-0.5 rounded-[3px] tracking-[0.08em] uppercase shrink-0 ${
+                            isTop1
+                              ? "bg-ink text-paper"
+                              : isTop3
+                                ? "border border-ink/30 text-ink-2"
+                                : "border border-ink/15 text-ink-4"
+                          }`}
+                        >
+                          {tier}
                         </span>
                       )}
                     </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-1 text-center min-w-35">
-                    <div className="rounded-lg bg-white/70 dark:bg-slate-900/70 px-2 py-1">
-                      <p className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-300">
-                        Diario
-                      </p>
-                      <p
-                        className={`text-xs font-semibold ${getCompletionTailwindClass(
-                          row.daily_completion,
-                        )}`}
-                      >
-                        {formatPercent(row.daily_completion)}
-                      </p>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-300 capitalize">
-                        {getCompletionLevel(row.daily_completion)}
-                      </p>
-                    </div>
-                    <div className="rounded-lg bg-white/70 dark:bg-slate-900/70 px-2 py-1">
-                      <p className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-300">
-                        Semanal
-                      </p>
-                      <p
-                        className={`text-xs font-semibold ${getCompletionTailwindClass(
-                          row.weekly_completion,
-                        )}`}
-                      >
-                        {formatPercent(row.weekly_completion)}
-                      </p>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-300 capitalize">
-                        {getCompletionLevel(row.weekly_completion)}
-                      </p>
-                    </div>
-                    <div className="rounded-lg bg-white/70 dark:bg-slate-900/70 px-2 py-1">
-                      <p className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-300">
-                        Mensual
-                      </p>
-                      <p
-                        className={`text-xs font-semibold ${getCompletionTailwindClass(
-                          row.monthly_completion,
-                        )}`}
-                      >
-                        {formatPercent(row.monthly_completion)}
-                      </p>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-300 capitalize">
-                        {getCompletionLevel(row.monthly_completion)}
-                      </p>
-                    </div>
-                    <div className="rounded-lg bg-white/70 dark:bg-slate-900/70 px-2 py-1">
-                      <p className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-300">
-                        Histórico
-                      </p>
-                      <p
-                        className={`text-xs font-semibold ${getCompletionTailwindClass(
-                          row.historical_completion,
-                        )}`}
-                      >
-                        {formatPercent(row.historical_completion)}
-                      </p>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-300 capitalize">
-                        {getCompletionLevel(row.historical_completion)}
-                      </p>
-                    </div>
+                    <span className="font-mono text-[10px] text-ink-4 tracking-[0.08em] truncate block mt-0.5">
+                      @{row.username.toUpperCase()}
+                    </span>
                   </div>
                 </div>
-              </article>
+
+                <span
+                  className={`font-serif text-[18px] sm:text-[22px] justify-self-end ${valueColorClass}`}
+                  style={isHigh ? { color: "var(--lime-ink)", background: "var(--lime)", padding: "2px 10px", borderRadius: 6 } : undefined}
+                >
+                  {hasValue ? (isZero ? "—" : `${val}%`) : "—"}
+                </span>
+              </div>
             );
           })}
-
-          {visibleRanking.length > 3 && (
-            <button
-              type="button"
-              onClick={() => setShowAllMobileRanks((prev) => !prev)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/70 dark:bg-slate-800/70 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm cursor-pointer"
-            >
-              {showAllMobileRanks ? "Ver menos" : "Ver más"}
-            </button>
-          )}
         </div>
       )}
-
-      <div className="hidden md:block max-w-full overflow-x-auto">
-        <table className="w-full min-w-170 text-left border-separate border-spacing-y-2">
-          <thead>
-            <tr className="text-slate-500 text-sm border-b border-slate-200 dark:border-slate-700">
-              <th className="py-2 px-2 text-center">#</th>
-              <th className="py-2 px-2 text-left">Usuario</th>
-              <th className="py-2 px-2 text-center">Diario</th>
-              <th className="py-2 px-2 text-center">Semanal</th>
-              <th className="py-2 px-2 text-center">Mensual</th>
-              <th className="py-2 px-2 text-center">Histórico</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleRanking.map((row, index) => {
-              const placementBadge = getPlacementBadge(index);
-
-              return (
-                <tr
-                  key={`${row.username}-${index}`}
-                  className={`border transition-colors hover:bg-slate-100/70 dark:hover:bg-slate-800/80 ${getRowStyle(index)}`}
-                >
-                  <td className="py-3 px-2 pl-3">
-                    <span className="inline-flex items-center justify-center min-w-10 h-8 rounded-lg border border-slate-300/80 dark:border-slate-600 bg-white/80 dark:bg-slate-900/80 text-sm font-semibold">
-                      {getRankLabel(index)}
-                    </span>
-                  </td>
-                  <td className="py-3 px-2">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={row.avatar_file_url || defaultAvatar}
-                        alt={row.display_name}
-                        className="w-10 h-10 rounded-full object-cover border border-slate-300 dark:border-slate-600"
-                      />
-                      <div>
-                        <p className="font-medium">{row.display_name}</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-300">
-                          @{row.username}
-                        </p>
-                        {Number.isFinite(row.streak_current) &&
-                          row.streak_current > 0 && (
-                            <p className="text-[11px] text-slate-500 dark:text-slate-300 mt-0.5">
-                              Racha: {row.streak_current} d
-                            </p>
-                          )}
-                        {placementBadge && (
-                          <span className="mt-1 inline-flex rounded-full border border-slate-300/80 dark:border-slate-600 bg-white/70 dark:bg-slate-900/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                            {placementBadge}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3 px-2 text-center">
-                    <span
-                      className={`inline-flex min-w-20 flex-col items-center justify-center rounded-lg border px-2.5 py-1 text-sm font-semibold shadow-xs ${getMetricChipClass(row.daily_completion)} ${getCompletionTailwindClass(row.daily_completion)}`}
-                    >
-                      {formatPercent(row.daily_completion)}
-                      <span className="text-[10px] capitalize text-slate-500 dark:text-slate-300">
-                        {getCompletionLevel(row.daily_completion)}
-                      </span>
-                    </span>
-                  </td>
-                  <td className="py-3 px-2 text-center">
-                    <span
-                      className={`inline-flex min-w-20 flex-col items-center justify-center rounded-lg border px-2.5 py-1 text-sm font-semibold shadow-xs ${getMetricChipClass(row.weekly_completion)} ${getCompletionTailwindClass(row.weekly_completion)}`}
-                    >
-                      {formatPercent(row.weekly_completion)}
-                      <span className="text-[10px] capitalize text-slate-500 dark:text-slate-300">
-                        {getCompletionLevel(row.weekly_completion)}
-                      </span>
-                    </span>
-                  </td>
-                  <td className="py-3 px-2 pr-3 text-center">
-                    <span
-                      className={`inline-flex min-w-20 flex-col items-center justify-center rounded-lg border px-2.5 py-1 text-sm font-semibold shadow-xs ${getMetricChipClass(row.monthly_completion)} ${getCompletionTailwindClass(row.monthly_completion)}`}
-                    >
-                      {formatPercent(row.monthly_completion)}
-                      <span className="text-[10px] capitalize text-slate-500 dark:text-slate-300">
-                        {getCompletionLevel(row.monthly_completion)}
-                      </span>
-                    </span>
-                  </td>
-                  <td className="py-3 px-2 pr-3 text-center">
-                    <span
-                      className={`inline-flex min-w-20 flex-col items-center justify-center rounded-lg border px-2.5 py-1 text-sm font-semibold shadow-xs ${getMetricChipClass(row.historical_completion)} ${getCompletionTailwindClass(row.historical_completion)}`}
-                    >
-                      {formatPercent(row.historical_completion)}
-                      <span className="text-[10px] capitalize text-slate-500 dark:text-slate-300">
-                        {getCompletionLevel(row.historical_completion)}
-                      </span>
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
     </div>
   );
 }

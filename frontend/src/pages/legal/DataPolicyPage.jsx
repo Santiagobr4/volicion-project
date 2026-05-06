@@ -55,8 +55,8 @@ const sections = [
 function Section({ title, paragraphs }) {
   return (
     <section>
-      <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
-      <div className="mt-3 space-y-3 text-sm sm:text-base leading-7 text-slate-600 dark:text-slate-300">
+      <h2 className="font-serif text-[26px] leading-[1.2]">{title}</h2>
+      <div className="mt-3 space-y-3 text-[15px] leading-[1.7] text-ink-2">
         {paragraphs.map((paragraph) => (
           <p key={paragraph}>{paragraph}</p>
         ))}

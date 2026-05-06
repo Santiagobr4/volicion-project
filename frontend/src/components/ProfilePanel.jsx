@@ -6,18 +6,15 @@ import {
   updateProfile,
 } from "../api/auth";
 import { getTrackerMetrics, getWeekly } from "../api/habits";
-import defaultAvatar from "../assets/default-avatar.svg";
+import Dialog from "./Dialog";
 import LoadingSpinner from "./LoadingSpinner";
-import { formatPercent } from "../utils/completion";
 import { getCurrentWeekStartIsoDate } from "../utils/dateUtils";
 import {
   buttonClassName,
+  eyebrowClassName,
   helpTextClassName,
   inputClassName,
   labelClassName,
-  modalBackdropClassName,
-  modalPanelClassName,
-  panelShellClassName,
 } from "./ui.js";
 
 const GENDER_OPTIONS = [
@@ -445,142 +442,126 @@ export default function ProfilePanel({ onProfileChange }) {
     }
   };
 
+  const displayNameForProfile = [form.first_name?.trim(), form.last_name?.trim()].filter(Boolean).join(" ") || "—";
+  const handleInitial = displayNameForProfile !== "—" ? displayNameForProfile[0].toUpperCase() : "?";
+
   if (loading) {
     return (
-      <div className={`${panelShellClassName} p-6`}>
+      <div className="max-w-[1240px] mx-auto px-4 sm:px-8 pt-6 pb-10">
         <LoadingSpinner label="Cargando perfil..." />
       </div>
     );
   }
 
   return (
-    <div className={`${panelShellClassName} p-3 sm:p-4 md:p-6`}>
-      <div className="mb-5 rounded-2xl border border-slate-200/80 dark:border-slate-700 bg-linear-to-r from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 p-3 sm:p-4">
-        <p className="text-xs uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
-          Perfil
-        </p>
-        <h2 className="text-xl font-semibold mt-1">Tu perfil</h2>
+    <div className="max-w-[1240px] mx-auto px-4 sm:px-8 pt-6 pb-10">
+
+      {/* Page head */}
+      <div className="mb-8">
+        <span className={eyebrowClassName}>Perfil</span>
+        <h1 className="font-serif text-[length:var(--text-h1)] leading-tight tracking-[-0.02em] mt-2">
+          Tu cuaderno,<br /><em>tus reglas.</em>
+        </h1>
       </div>
 
-      <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/60 p-4">
-          <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-300">
-            Racha actual
-          </p>
-          <p className="mt-1 text-2xl font-semibold text-slate-800 dark:text-slate-100">
-            {summaryLoading
-              ? "..."
-              : `${profileSummary.streakCurrent ?? 0} días`}
-          </p>
-          <p className="text-xs text-slate-500 dark:text-slate-300 mt-1">
-            Tu mejor racha activa entre hábitos esta semana.
-          </p>
-        </div>
+      {/* Profile grid: sidebar + form */}
+      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-8 lg:gap-12">
 
-        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/60 p-4">
-          <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-300">
-            Cumplimiento promedio
-          </p>
-          <p className="mt-1 text-2xl font-semibold text-slate-800 dark:text-slate-100">
-            {summaryLoading
-              ? "..."
-              : formatPercent(profileSummary.averageCompletion)}
-          </p>
-          <p className="text-xs text-slate-500 dark:text-slate-300 mt-1">
-            Promedio de avance de la semana en curso.
-          </p>
-        </div>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/60">
-          <img
-            src={avatarPreview || defaultAvatar}
-            alt="Perfil"
-            className="w-20 h-20 rounded-full object-cover border border-slate-300 dark:border-slate-600"
-          />
-
-          <div className="flex-1 w-full min-w-0">
-            <p className={helpTextClassName}>JPG, PNG o WEBP. Máximo 2 MB.</p>
-
-            <div className="mt-3 flex flex-wrap items-center gap-2 sm:gap-3">
+        {/* Sidebar */}
+        <aside className="flex flex-col gap-6">
+          {/* Avatar card */}
+          <div className="rounded-[14px] border border-ink/10 bg-paper-2 p-8 text-center">
+            <div className="relative inline-block mb-4">
+              {avatarPreview ? (
+                <img
+                  src={avatarPreview}
+                  alt="Perfil"
+                  width={96}
+                  height={96}
+                  decoding="async"
+                  className="w-24 h-24 rounded-full object-cover border border-ink/10 mx-auto"
+                />
+              ) : (
+                <div className="w-24 h-24 rounded-full bg-ink text-paper flex items-center justify-center font-serif text-[36px] mx-auto">
+                  {handleInitial}
+                </div>
+              )}
+            </div>
+            <div className="font-serif text-[26px] leading-tight">{displayNameForProfile}</div>
+            <div className="font-mono text-[11px] text-ink-3 mt-1 tracking-[0.08em]">@{form.email?.split("@")[0] || "—"}</div>
+            <div className="mt-5 flex flex-col gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  setSuccess("");
-                  setPendingPhoto(null);
-                  setShowPhotoModal(true);
-                }}
-                className={
-                  buttonClassName({ variant: "secondary", size: "sm" }) +
-                  " w-full sm:w-auto"
-                }
+                onClick={() => { setSuccess(""); setPendingPhoto(null); setShowPhotoModal(true); }}
+                className={buttonClassName({ variant: "ghost", size: "sm" })}
               >
                 Cambiar foto
               </button>
-
-              {avatarFile && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSuccess("");
-                    setAvatarFile(null);
-                    if (previewObjectUrl) {
-                      URL.revokeObjectURL(previewObjectUrl);
-                      setPreviewObjectUrl("");
-                    }
-                    setAvatarPreview(persistedAvatarPreview);
-                  }}
-                  className={
-                    buttonClassName({ variant: "secondary", size: "sm" }) +
-                    " w-full sm:w-auto"
-                  }
-                >
-                  Quitar foto
-                </button>
-              )}
-
               {hasCustomAvatar && !avatarFile && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setSuccess("");
-                    setAvatarFile(null);
-                    setRemoveAvatar(true);
-                    setHasCustomAvatar(false);
-                    setAvatarPreview("");
-                  }}
-                  className={
-                    buttonClassName({ variant: "danger", size: "sm" }) +
-                    " w-full sm:w-auto"
-                  }
+                  onClick={() => { setSuccess(""); setAvatarFile(null); setRemoveAvatar(true); setHasCustomAvatar(false); setAvatarPreview(""); }}
+                  className={buttonClassName({ variant: "danger", size: "sm" })}
                 >
-                  Eliminar foto actual
+                  Eliminar foto
                 </button>
               )}
-
               {removeAvatar && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setSuccess("");
-                    setRemoveAvatar(false);
-                    setHasCustomAvatar(Boolean(persistedAvatarPreview));
-                    setAvatarPreview(persistedAvatarPreview);
-                  }}
-                  className={
-                    buttonClassName({ variant: "secondary", size: "sm" }) +
-                    " w-full sm:w-auto"
-                  }
+                  onClick={() => { setSuccess(""); setRemoveAvatar(false); setHasCustomAvatar(Boolean(persistedAvatarPreview)); setAvatarPreview(persistedAvatarPreview); }}
+                  className={buttonClassName({ variant: "ghost", size: "sm" })}
                 >
                   Deshacer
                 </button>
               )}
+              {avatarFile && (
+                <button
+                  type="button"
+                  onClick={() => { setSuccess(""); setAvatarFile(null); if (previewObjectUrl) { URL.revokeObjectURL(previewObjectUrl); setPreviewObjectUrl(""); } setAvatarPreview(persistedAvatarPreview); }}
+                  className={buttonClassName({ variant: "ghost", size: "sm" })}
+                >
+                  Quitar foto nueva
+                </button>
+              )}
             </div>
+            <div className="font-mono text-[10px] text-ink-4 mt-3 tracking-[0.06em]">JPG · PNG · WEBP · MÁX 2MB</div>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Streak card */}
+          <div className="rounded-[14px] border border-ink/10 bg-paper-2 p-5">
+            <span className="font-mono text-[11px] tracking-[0.10em] uppercase text-ink-4">Racha actual</span>
+            <div className="font-serif mt-2">
+              <span className="text-[56px] leading-none">
+                {summaryLoading ? "…" : (profileSummary.streakCurrent ?? 0)}
+              </span>
+              <span className="text-[20px] text-ink-3 ml-1.5">días</span>
+            </div>
+            <p className="text-[13px] text-ink-3 mt-1">Tu mejor racha activa.</p>
+          </div>
+
+          {/* Completion card */}
+          <div className="rounded-[14px] border border-ink/10 bg-paper-2 p-5">
+            <span className="font-mono text-[11px] tracking-[0.10em] uppercase text-ink-4">Cumplimiento promedio</span>
+            <div className="font-serif mt-2">
+              <span className="text-[56px] leading-none">
+                {summaryLoading ? "…" : (profileSummary.averageCompletion !== null && profileSummary.averageCompletion !== undefined ? profileSummary.averageCompletion : "—")}
+              </span>
+              {!summaryLoading && profileSummary.averageCompletion !== null && profileSummary.averageCompletion !== undefined && (
+                <span className="text-[20px] text-ink-3">%</span>
+              )}
+            </div>
+            <p className="text-[13px] text-ink-3 mt-1">Promedio de avance esta semana.</p>
+          </div>
+        </aside>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="flex flex-col gap-8">
+        <section>
+          <span className={eyebrowClassName}>Identidad</span>
+          <h2 className="font-serif text-[32px] leading-tight mt-2 mb-6">Datos personales</h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
           <div>
             <label
               className={`${labelClassName} mb-1 flex items-center gap-1.5`}
@@ -588,7 +569,7 @@ export default function ProfilePanel({ onProfileChange }) {
               Nombre
               {isFieldDirty("first_name") && (
                 <span
-                  className="inline-block h-1.5 w-1.5 rounded-full bg-sky-500/80"
+                  className="inline-block h-1.5 w-1.5 rounded-full bg-lime"
                   aria-label="Campo modificado"
                 />
               )}
@@ -602,12 +583,12 @@ export default function ProfilePanel({ onProfileChange }) {
               onBlur={() => handleFieldBlur("first_name")}
               className={`${inputClassName} ${
                 isFieldDirty("first_name")
-                  ? "border-sky-400/80 dark:border-sky-500/70"
+                  ? "border-lime"
                   : ""
               }`}
             />
             {getVisibleFieldError("first_name") && (
-              <p className="mt-1.5 text-xs text-red-600 dark:text-red-300">
+              <p className="mt-1.5 text-xs text-signal">
                 {getVisibleFieldError("first_name")}
               </p>
             )}
@@ -620,7 +601,7 @@ export default function ProfilePanel({ onProfileChange }) {
               Apellido
               {isFieldDirty("last_name") && (
                 <span
-                  className="inline-block h-1.5 w-1.5 rounded-full bg-sky-500/80"
+                  className="inline-block h-1.5 w-1.5 rounded-full bg-lime"
                   aria-label="Campo modificado"
                 />
               )}
@@ -632,12 +613,12 @@ export default function ProfilePanel({ onProfileChange }) {
               onBlur={() => handleFieldBlur("last_name")}
               className={`${inputClassName} ${
                 isFieldDirty("last_name")
-                  ? "border-sky-400/80 dark:border-sky-500/70"
+                  ? "border-lime"
                   : ""
               }`}
             />
             {getVisibleFieldError("last_name") && (
-              <p className="mt-1.5 text-xs text-red-600 dark:text-red-300">
+              <p className="mt-1.5 text-xs text-signal">
                 {getVisibleFieldError("last_name")}
               </p>
             )}
@@ -650,7 +631,7 @@ export default function ProfilePanel({ onProfileChange }) {
               Correo electrónico
               {isFieldDirty("email") && (
                 <span
-                  className="inline-block h-1.5 w-1.5 rounded-full bg-sky-500/80"
+                  className="inline-block h-1.5 w-1.5 rounded-full bg-lime"
                   aria-label="Campo modificado"
                 />
               )}
@@ -662,12 +643,12 @@ export default function ProfilePanel({ onProfileChange }) {
               onBlur={() => handleFieldBlur("email")}
               className={`${inputClassName} ${
                 isFieldDirty("email")
-                  ? "border-sky-400/80 dark:border-sky-500/70"
+                  ? "border-lime"
                   : ""
               }`}
             />
             {getVisibleFieldError("email") && (
-              <p className="mt-1.5 text-xs text-red-600 dark:text-red-300">
+              <p className="mt-1.5 text-xs text-signal">
                 {getVisibleFieldError("email")}
               </p>
             )}
@@ -680,7 +661,7 @@ export default function ProfilePanel({ onProfileChange }) {
               Fecha de nacimiento
               {isFieldDirty("birth_date") && (
                 <span
-                  className="inline-block h-1.5 w-1.5 rounded-full bg-sky-500/80"
+                  className="inline-block h-1.5 w-1.5 rounded-full bg-lime"
                   aria-label="Campo modificado"
                 />
               )}
@@ -694,12 +675,12 @@ export default function ProfilePanel({ onProfileChange }) {
               onBlur={() => handleFieldBlur("birth_date")}
               className={`${inputClassName} ${
                 isFieldDirty("birth_date")
-                  ? "border-sky-400/80 dark:border-sky-500/70"
+                  ? "border-lime"
                   : ""
               }`}
             />
             {getVisibleFieldError("birth_date") && (
-              <p className="mt-1.5 text-xs text-red-600 dark:text-red-300">
+              <p className="mt-1.5 text-xs text-signal">
                 {getVisibleFieldError("birth_date")}
               </p>
             )}
@@ -712,7 +693,7 @@ export default function ProfilePanel({ onProfileChange }) {
               Peso (kg)
               {isFieldDirty("weight_kg") && (
                 <span
-                  className="inline-block h-1.5 w-1.5 rounded-full bg-sky-500/80"
+                  className="inline-block h-1.5 w-1.5 rounded-full bg-lime"
                   aria-label="Campo modificado"
                 />
               )}
@@ -726,12 +707,12 @@ export default function ProfilePanel({ onProfileChange }) {
               onBlur={() => handleFieldBlur("weight_kg")}
               className={`${inputClassName} ${
                 isFieldDirty("weight_kg")
-                  ? "border-sky-400/80 dark:border-sky-500/70"
+                  ? "border-lime"
                   : ""
               }`}
             />
             {getVisibleFieldError("weight_kg") && (
-              <p className="mt-1.5 text-xs text-red-600 dark:text-red-300">
+              <p className="mt-1.5 text-xs text-signal">
                 {getVisibleFieldError("weight_kg")}
               </p>
             )}
@@ -744,7 +725,7 @@ export default function ProfilePanel({ onProfileChange }) {
               Género
               {isFieldDirty("gender") && (
                 <span
-                  className="inline-block h-1.5 w-1.5 rounded-full bg-sky-500/80"
+                  className="inline-block h-1.5 w-1.5 rounded-full bg-lime"
                   aria-label="Campo modificado"
                 />
               )}
@@ -755,7 +736,7 @@ export default function ProfilePanel({ onProfileChange }) {
               onBlur={() => handleFieldBlur("gender")}
               className={`${inputClassName} ${
                 isFieldDirty("gender")
-                  ? "border-sky-400/80 dark:border-sky-500/70"
+                  ? "border-lime"
                   : ""
               }`}
             >
@@ -766,213 +747,189 @@ export default function ProfilePanel({ onProfileChange }) {
               ))}
             </select>
             {getVisibleFieldError("gender") && (
-              <p className="mt-1.5 text-xs text-red-600 dark:text-red-300">
+              <p className="mt-1.5 text-xs text-signal">
                 {getVisibleFieldError("gender")}
               </p>
             )}
           </div>
         </div>
+        </section>
 
-        {error && (
-          <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300">
-            {error}
-          </p>
-        )}
-        {success && (
-          <p
-            className={`fade-in rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 transition-opacity duration-500 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300 ${
-              successVisible ? "opacity-100" : "opacity-0"
-            }`}
-          >
-            {success}
-          </p>
-        )}
-        {passwordResetMessage && (
-          <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
-            {passwordResetMessage}
-          </p>
-        )}
+        <hr className="border-ink/10" />
 
-        <div className="pt-2">
-          {isDirty && (
-            <p className="mb-2 text-xs text-slate-500 dark:text-slate-300 fade-in">
-              Tienes cambios sin guardar.
-            </p>
-          )}
-          <div className="flex flex-col sm:flex-row gap-2">
-            <button
-              type="submit"
-              disabled={saving || !isDirty}
-              className={`${buttonClassName({ variant: "primary" })} transition-transform duration-150 hover:-translate-y-0.5 disabled:hover:translate-y-0`}
-              aria-busy={saving}
-              title={!isDirty && !saving ? "No hay cambios" : undefined}
-            >
-              {saving ? (
-                <>
-                  <span
-                    className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white dark:border-slate-600 dark:border-t-slate-900"
-                    aria-hidden="true"
-                  />
-                  Guardando...
-                </>
-              ) : (
-                "Guardar perfil"
-              )}
-            </button>
+        <section>
+          <span className={eyebrowClassName}>Cuenta</span>
+          <h2 className="font-serif text-[32px] leading-tight mt-2 mb-6">Seguridad</h2>
+          <div className="flex flex-wrap gap-3">
             <button
               type="button"
               disabled={sendingResetEmail}
               onClick={handlePasswordResetRequest}
-              className={buttonClassName({ variant: "secondary" })}
+              className={buttonClassName({ variant: "ghost" })}
               aria-busy={sendingResetEmail}
             >
-              {sendingResetEmail
-                ? "Enviando correo..."
-                : "Restaurar contraseña"}
+              {sendingResetEmail ? "Enviando correo..." : "Restaurar contraseña"}
             </button>
           </div>
+        </section>
+
+        {error && (
+          <p className="rounded-[14px] border border-signal/25 bg-signal-soft px-4 py-3 text-sm text-signal">
+            {error}
+          </p>
+        )}
+        {passwordResetMessage && (
+          <p className="rounded-[14px] border border-lime/30 bg-lime/8 px-4 py-3 text-sm">
+            {passwordResetMessage}
+          </p>
+        )}
+
+        <hr className="border-ink/10" />
+
+        <div className="flex flex-wrap items-center gap-4">
+          <button
+            type="submit"
+            disabled={saving || !isDirty}
+            className={buttonClassName({ variant: "primary" })}
+            aria-busy={saving}
+            title={!isDirty && !saving ? "No hay cambios" : undefined}
+          >
+            {saving ? "Guardando..." : "Guardar perfil"}
+          </button>
+          {isDirty && (
+            <span className="font-mono text-[11px] text-ink-3">Tienes cambios sin guardar.</span>
+          )}
+          {success && successVisible && (
+            <span className="fade-up font-mono text-[11px] tracking-[0.1em] uppercase text-lime-ink bg-lime px-3 py-1.5 rounded-full">
+              ✓ {success}
+            </span>
+          )}
         </div>
       </form>
+      </div>
 
-      {showSaveConfirm && (
-        <div className={modalBackdropClassName}>
-          <div className={`${modalPanelClassName} max-w-sm p-5`}>
-            <h3 className="text-lg font-semibold">Confirmar cambios</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-300 mt-2">
-              ¿Guardar cambios?
-            </p>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShowSaveConfirm(false)}
-                className={buttonClassName({
-                  variant: "secondary",
-                  size: "sm",
-                })}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={saving}
-                onClick={async () => {
-                  setShowSaveConfirm(false);
-                  await saveProfile();
-                }}
-                className={buttonClassName({ variant: "primary", size: "sm" })}
-                aria-busy={saving}
-              >
-                {saving ? (
-                  <>
-                    <span
-                      className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white dark:border-slate-600 dark:border-t-slate-900"
-                      aria-hidden="true"
-                    />
-                    Guardando...
-                  </>
-                ) : (
-                  "Sí, guardar"
-                )}
-              </button>
-            </div>
-          </div>
+      <Dialog
+        open={showSaveConfirm}
+        onClose={() => setShowSaveConfirm(false)}
+        title="Confirmar cambios"
+        panelClassName="max-w-sm p-5"
+      >
+        <p className="text-sm text-ink-3 mt-2">¿Guardar cambios?</p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setShowSaveConfirm(false)}
+            className={buttonClassName({ variant: "secondary", size: "sm" })}
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={async () => {
+              setShowSaveConfirm(false);
+              await saveProfile();
+            }}
+            className={buttonClassName({ variant: "primary", size: "sm" })}
+            aria-busy={saving}
+          >
+            {saving ? (
+              <>
+                <span
+                  className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-paper/40 border-t-paper"
+                  aria-hidden="true"
+                />
+                Guardando...
+              </>
+            ) : (
+              "Sí, guardar"
+            )}
+          </button>
         </div>
-      )}
+      </Dialog>
 
-      {showPhotoModal && (
-        <div className={modalBackdropClassName}>
-          <div className={`${modalPanelClassName} max-w-md p-5 sm:p-6`}>
-            <h3 className="text-lg font-semibold">Subir foto</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-300 mt-2">
-              Elige una imagen JPG, PNG o WEBP. Máximo 2 MB.
-            </p>
+      <Dialog
+        open={showPhotoModal}
+        onClose={() => { setPendingPhoto(null); setShowPhotoModal(false); }}
+        title="Subir foto"
+        panelClassName="max-w-md p-5 sm:p-6"
+      >
+        <p className="text-sm text-ink-3 mt-2">
+          Elige una imagen JPG, PNG o WEBP. Máximo 2 MB.
+        </p>
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="hidden"
-              onChange={(event) => {
-                setError("");
-                setSuccess("");
-                const file = event.target.files?.[0] || null;
-                setPendingPhoto(file);
-              }}
-            />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={(event) => {
+            setError("");
+            setSuccess("");
+            const file = event.target.files?.[0] || null;
+            setPendingPhoto(file);
+          }}
+        />
 
-            <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 p-3">
-              <p className={helpTextClassName}>
-                {pendingPhoto ? pendingPhoto.name : "Aún no elegiste archivo."}
-              </p>
-            </div>
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className={buttonClassName({
-                  variant: "secondary",
-                  size: "sm",
-                })}
-              >
-                Elegir archivo
-              </button>
-            </div>
-
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setPendingPhoto(null);
-                  setShowPhotoModal(false);
-                }}
-                className={buttonClassName({
-                  variant: "secondary",
-                  size: "sm",
-                })}
-              >
-                Cancelar
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (!pendingPhoto) {
-                    setError("Primero elige una imagen.");
-                    return;
-                  }
-
-                  if (!ALLOWED_IMAGE_TYPES.includes(pendingPhoto.type)) {
-                    setError("La imagen debe ser JPG, PNG o WEBP.");
-                    return;
-                  }
-
-                  if (pendingPhoto.size > MAX_IMAGE_BYTES) {
-                    setError("La imagen debe pesar 2 MB o menos.");
-                    return;
-                  }
-
-                  setAvatarFile(pendingPhoto);
-                  setRemoveAvatar(false);
-                  setHasCustomAvatar(true);
-                  if (previewObjectUrl) {
-                    URL.revokeObjectURL(previewObjectUrl);
-                  }
-                  const url = URL.createObjectURL(pendingPhoto);
-                  setPreviewObjectUrl(url);
-                  setAvatarPreview(url);
-                  setPendingPhoto(null);
-                  setShowPhotoModal(false);
-                  setSuccess("");
-                }}
-                className={buttonClassName({ variant: "primary", size: "sm" })}
-              >
-                Usar foto
-              </button>
-            </div>
-          </div>
+        <div className="mt-4 rounded-[10px] border border-ink/10 bg-paper-2 p-3">
+          <p className={helpTextClassName}>
+            {pendingPhoto ? pendingPhoto.name : "Aún no elegiste archivo."}
+          </p>
         </div>
-      )}
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className={buttonClassName({ variant: "secondary", size: "sm" })}
+          >
+            Elegir archivo
+          </button>
+        </div>
+
+        <div className="mt-6 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => { setPendingPhoto(null); setShowPhotoModal(false); }}
+            className={buttonClassName({ variant: "secondary", size: "sm" })}
+          >
+            Cancelar
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (!pendingPhoto) {
+                setError("Primero elige una imagen.");
+                return;
+              }
+              if (!ALLOWED_IMAGE_TYPES.includes(pendingPhoto.type)) {
+                setError("La imagen debe ser JPG, PNG o WEBP.");
+                return;
+              }
+              if (pendingPhoto.size > MAX_IMAGE_BYTES) {
+                setError("La imagen debe pesar 2 MB o menos.");
+                return;
+              }
+              setAvatarFile(pendingPhoto);
+              setRemoveAvatar(false);
+              setHasCustomAvatar(true);
+              if (previewObjectUrl) {
+                URL.revokeObjectURL(previewObjectUrl);
+              }
+              const url = URL.createObjectURL(pendingPhoto);
+              setPreviewObjectUrl(url);
+              setAvatarPreview(url);
+              setPendingPhoto(null);
+              setShowPhotoModal(false);
+              setSuccess("");
+            }}
+            className={buttonClassName({ variant: "primary", size: "sm" })}
+          >
+            Usar foto
+          </button>
+        </div>
+      </Dialog>
     </div>
   );
 }

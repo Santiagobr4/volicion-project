@@ -11,7 +11,7 @@ import { getIsoDateLabel, getIsoDayNameLong } from "../utils/dateLabels";
 import { getCurrentWeekStartIsoDate } from "../utils/dateUtils";
 import { loadHabitOrder, saveHabitOrder } from "../utils/habitOrderStorage";
 import LoadingSpinner from "./LoadingSpinner";
-import { buttonClassName } from "./ui.js";
+import { buttonClassName, eyebrowClassName } from "./ui.js";
 
 const DONE_FEEDBACK_MESSAGES = [
   "Buen trabajo. Sumaste otro check a tu semana.",
@@ -20,7 +20,7 @@ const DONE_FEEDBACK_MESSAGES = [
   "Muy bien. Mantener el ritmo es lo que cuenta.",
 ];
 
-export default function WeeklyTable({ onDataChanged, storageNamespace }) {
+export default function WeeklyTable({ onDataChanged, storageNamespace, user }) {
   const {
     data,
     dates,
@@ -50,22 +50,12 @@ export default function WeeklyTable({ onDataChanged, storageNamespace }) {
   const isCurrentWeek = startDate === getCurrentWeekStartIsoDate();
   const observedDays = (trackerMetrics?.daily || []).filter((row) => row?.date).length;
   const evaluatedDays = Math.max(trackerMetrics?.evaluated_days ?? 0, observedDays);
-  const totalDays = Math.max(trackerMetrics?.total_days ?? 7, evaluatedDays, 1);
   const weekPhase = trackerMetrics?.week_phase;
   const hasTrackedEntries = (trackerMetrics?.daily || []).some(
     (row) => (row?.done ?? 0) + (row?.missed ?? 0) > 0,
   );
   const isFirstWeek = trackerMetrics?.baseline_date === startDate;
   const hasEvaluatedWindow = weekPhase !== "future" && evaluatedDays > 0;
-
-  const weekProgressLabel =
-    weekPhase === "future"
-      ? "Semana aún no inicia"
-      : `Día ${Math.min(evaluatedDays, totalDays)} de ${totalDays}`;
-  const progressPercent =
-    weekPhase === "future"
-      ? 0
-      : Math.max(0, Math.min(100, Math.round((evaluatedDays / totalDays) * 100)));
 
   const orderedActiveIds = useMemo(() => {
     const activeIds = data.filter((h) => !h.removal_effective_date).map((h) => h.habit_id);
@@ -174,7 +164,6 @@ export default function WeeklyTable({ onDataChanged, storageNamespace }) {
     setDeleteId(habit.habit_id);
   };
 
-  const activeHabits = orderedHabits.filter((h) => !h.removal_effective_date);
   const hasNoWeeklyRecords = orderedHabits.length > 0 && hasEvaluatedWindow && !hasTrackedEntries;
 
   const openOrderModal = () => {
@@ -192,33 +181,71 @@ export default function WeeklyTable({ onDataChanged, storageNamespace }) {
     setDraftOrder(currentOrder);
   };
 
+  const activeHabits = orderedHabits.filter((h) => !h.removal_effective_date);
+  const showActionsColumn = canManageHabits || orderedHabits.some((h) => h.removal_effective_date);
+  const todayDone = trackerMetrics?.focus?.done ?? 0;
+  const todayTotal = trackerMetrics?.focus?.total ?? 0;
+  const todayPct = todayTotal > 0 ? Math.round((todayDone / todayTotal) * 100) : 0;
+  const weekCompletion = trackerMetrics?.week?.completion;
+  const bestStreak = orderedHabits.reduce((max, h) => Math.max(max, h.streak_best || 0), 0);
+
+  const now = new Date();
+  const _d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  _d.setUTCDate(_d.getUTCDate() + 4 - (_d.getUTCDay() || 7));
+  const _yearStart = new Date(Date.UTC(_d.getUTCFullYear(), 0, 1));
+  const weekNumToday = Math.ceil(((_d - _yearStart) / 86400000 + 1) / 7);
+  const weekday = new Intl.DateTimeFormat("es-419", { weekday: "short" }).format(now).replace(".", "").toUpperCase();
+  const dayNum = String(now.getDate()).padStart(2, "0");
+  const monthName = new Intl.DateTimeFormat("es-419", { month: "long" }).format(now).toUpperCase();
+  const dateEyebrow = `${weekday} · ${dayNum} · ${monthName} · ${now.getFullYear()} · SEMANA ${weekNumToday}`;
+
   return (
     <div className="max-w-[1240px] mx-auto px-4 sm:px-8 pt-6 pb-10">
 
-      {/* Section header */}
-      <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
-        <div>
-          <span className="font-mono text-[11px] tracking-[0.12em] uppercase text-ink-4">
-            Seguimiento semanal
+      {/* Greeting + today widget */}
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-6">
+        <div className="min-w-0">
+          <span className={eyebrowClassName}>
+            {dateEyebrow}
           </span>
-          <div className="flex flex-wrap items-baseline gap-3 mt-1">
-            <p className="font-serif text-[32px] leading-tight tracking-[-0.02em]">
-              {weekProgressLabel}
-            </p>
-            <p className="font-mono text-[12px] text-ink-3">
-              Semana del {startDate}
+          <h1 className="font-serif text-[length:var(--text-h1)] leading-[0.98] tracking-[-0.02em] mt-3" style={{ marginBottom: 0 }}>
+            Hola, <em className="text-ink-3 italic">{user || "ahí"}.</em><br />
+            Hoy toca{" "}
+            <span style={{ borderBottom: "3px solid var(--lime)", paddingBottom: 2 }}>cumplir.</span>
+          </h1>
+        </div>
+        <div className="flex flex-col md:items-end gap-2 shrink-0">
+          <span className={eyebrowClassName}>Hoy</span>
+          <div className="flex items-baseline gap-3">
+            <span className="font-serif text-[48px] sm:text-[64px] leading-none">{todayDone}</span>
+            <span className="text-[16px] sm:text-[18px] text-ink-3">/ {todayTotal} hábitos</span>
+          </div>
+          <div className="w-full md:w-[200px] h-[4px] bg-paper-3 rounded-full overflow-hidden">
+            <div className="h-full bg-lime rounded-full transition-[width] duration-300" style={{ width: `${todayPct}%` }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Stats + actions row */}
+      <div className="flex flex-col md:flex-row md:flex-wrap md:items-end md:justify-between gap-5 mb-6 pt-6 border-t border-ink/10">
+        <div className="grid grid-cols-3 gap-6 sm:gap-10">
+          <div>
+            <p className="font-mono text-[10px] sm:text-[11px] tracking-[0.10em] sm:tracking-[0.12em] uppercase text-ink-3 mb-2">Racha mejor</p>
+            <p className="font-serif text-[28px] sm:text-[36px] lg:text-[44px] leading-[0.9]">
+              {bestStreak}<span className="text-[14px] sm:text-[18px] text-ink-3 ml-1.5">días</span>
             </p>
           </div>
-          <div className="mt-3 max-w-[200px]">
-            <div
-              className="h-[2px] bg-paper-3 rounded-full overflow-hidden"
-              title={`Avance semanal: ${progressPercent}% del tiempo transcurrido`}
-            >
-              <div
-                className="h-full bg-ink rounded-full transition-[width] duration-300 ease-out"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
+          <div>
+            <p className="font-mono text-[10px] sm:text-[11px] tracking-[0.10em] sm:tracking-[0.12em] uppercase text-ink-3 mb-2">Cumplimiento semanal</p>
+            <p className="font-serif text-[28px] sm:text-[36px] lg:text-[44px] leading-[0.9]">
+              {weekCompletion !== null && weekCompletion !== undefined
+                ? <>{weekCompletion}<span className="text-[16px] sm:text-[24px] text-ink-3">%</span></>
+                : <span className="text-ink-4">—</span>}
+            </p>
+          </div>
+          <div>
+            <p className="font-mono text-[10px] sm:text-[11px] tracking-[0.10em] sm:tracking-[0.12em] uppercase text-ink-3 mb-2">Hábitos activos</p>
+            <p className="font-serif text-[28px] sm:text-[36px] lg:text-[44px] leading-[0.9]">{activeHabits.length}</p>
           </div>
         </div>
 
@@ -232,22 +259,25 @@ export default function WeeklyTable({ onDataChanged, storageNamespace }) {
 
           <button
             onClick={() => { setEditingHabit(null); setShowModal(true); }}
-            className={buttonClassName({ variant: "primary" })}
+            className={buttonClassName({ variant: "ghost", size: "sm" })}
           >
             + Nuevo hábito
           </button>
 
           {activeHabits.length > 1 && (
-            <button onClick={openOrderModal} className={buttonClassName({ variant: "secondary" })}>
-              Ordenar
+            <button onClick={openOrderModal} className={buttonClassName({ variant: "ghost", size: "sm" })}>
+              Reordenar
             </button>
           )}
 
-          <div className={`overflow-hidden transition-all duration-300 ${!isCurrentWeek ? "max-w-40 opacity-100" : "max-w-0 opacity-0 pointer-events-none"}`}>
-            <button onClick={goToCurrentWeek} className={buttonClassName({ variant: "ghost" })}>
+          {!isCurrentWeek && (
+            <button
+              onClick={goToCurrentWeek}
+              className={`${buttonClassName({ variant: "ghost", size: "sm" })} fade-up`}
+            >
               Semana actual
             </button>
-          </div>
+          )}
 
           <div className="inline-flex rounded-full border border-ink/10 overflow-hidden">
             <button
@@ -255,7 +285,7 @@ export default function WeeklyTable({ onDataChanged, storageNamespace }) {
               disabled={!canGoPrev}
               title={canGoPrev ? "Ir a la semana anterior" : "No puedes ir antes de tu primera semana"}
               aria-label={canGoPrev ? "Ir a la semana anterior" : "Semana anterior no disponible"}
-              className="w-9 h-9 flex items-center justify-center hover:bg-paper-2 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-sm"
+              className="w-11 h-11 flex items-center justify-center hover:bg-paper-2 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/30 focus-visible:ring-inset"
             >←</button>
             <span className="w-[1px] bg-ink/10 self-stretch" />
             <button
@@ -263,7 +293,7 @@ export default function WeeklyTable({ onDataChanged, storageNamespace }) {
               disabled={!canGoNext}
               title="Ir a la semana siguiente"
               aria-label="Ir a la semana siguiente"
-              className="w-9 h-9 flex items-center justify-center hover:bg-paper-2 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-sm"
+              className="w-11 h-11 flex items-center justify-center hover:bg-paper-2 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/30 focus-visible:ring-inset"
             >→</button>
           </div>
         </div>
@@ -291,16 +321,14 @@ export default function WeeklyTable({ onDataChanged, storageNamespace }) {
             )}
 
             {hasNoWeeklyRecords && (
-              <div className="mb-4 rounded-[10px] border border-gold/30 bg-gold/8 px-4 py-3">
-                <p className="text-sm font-medium">
-                  {isFirstWeek && evaluatedDays <= 1
-                    ? "Primer día de uso: aún no hay actividad registrada"
-                    : "Semana sin registros todavía"}
+              <div className="mb-6 border-l-2 border-gold pl-4 py-1">
+                <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-gold mb-1.5">
+                  {isFirstWeek && evaluatedDays <= 1 ? "Primer día" : "Semana sin actividad"}
                 </p>
-                <p className="text-xs text-ink-3 mt-1">
+                <p className="font-serif text-[18px] leading-[1.3] text-ink">
                   {isFirstWeek && evaluatedDays <= 1
-                    ? "Empieza con un hábito sencillo hoy para construir inercia desde el inicio."
-                    : "Marca al menos un hábito hoy para desbloquear recomendaciones más precisas."}
+                    ? "Aún sin registros. Empieza con un hábito sencillo hoy."
+                    : "Marca un hábito hoy para abrir recomendaciones más precisas."}
                 </p>
               </div>
             )}
@@ -321,30 +349,35 @@ export default function WeeklyTable({ onDataChanged, storageNamespace }) {
             </div>
 
             {/* Desktop table */}
-            <div className="hidden lg:block max-w-full overflow-x-auto pb-1">
+            <div className="hidden lg:block max-w-full overflow-x-auto pb-1 border-t border-ink/22">
               <table
-                className="w-full text-center border-separate border-spacing-y-1.5"
+                className="w-full text-center"
                 style={{ minWidth: "860px" }}
               >
                 <thead>
-                  <tr>
-                    <th className="text-left px-3 py-2 min-w-52 font-mono text-[11px] tracking-[0.10em] uppercase text-ink-4">
+                  <tr className="border-b border-ink/8">
+                    <th className="text-left px-3 py-3 min-w-52 font-mono text-[11px] tracking-[0.10em] uppercase text-ink-3 font-normal">
                       Hábito
                     </th>
-                    {dates.map((d) => (
-                      <th key={d} className="w-14 py-2 font-mono text-[10px] tracking-[0.06em] uppercase text-ink-4">
-                        <div className="leading-tight">
-                          <p>{getIsoDayNameLong(d)}</p>
-                          <p className="opacity-50">{getIsoDateLabel(d)}</p>
-                        </div>
-                      </th>
-                    ))}
-                    <th className="font-mono text-[11px] tracking-[0.10em] uppercase text-ink-4">
+                    {dates.map((d) => {
+                      const isToday = d === new Date().toISOString().slice(0, 10);
+                      return (
+                        <th key={d} className="py-3 font-mono text-[10px] tracking-[0.06em] uppercase font-normal">
+                          <div className="leading-tight">
+                            <p className={isToday ? "text-ink font-medium" : "text-ink-4"}>{getIsoDayNameLong(d)}</p>
+                            <p className={isToday ? "text-ink-3" : "text-ink-4 opacity-70"}>{getIsoDateLabel(d)}</p>
+                          </div>
+                        </th>
+                      );
+                    })}
+                    <th className="font-mono text-[11px] tracking-[0.10em] uppercase text-ink-3 font-normal text-right pr-3">
                       Racha
                     </th>
-                    <th className="font-mono text-[11px] tracking-[0.10em] uppercase text-ink-4">
-                      Acciones
-                    </th>
+                    {showActionsColumn && (
+                      <th className="font-mono text-[11px] tracking-[0.10em] uppercase text-ink-3 font-normal text-right pr-2">
+                        Acciones
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -354,6 +387,7 @@ export default function WeeklyTable({ onDataChanged, storageNamespace }) {
                       habit={habit}
                       dates={dates}
                       canManageHabits={canManageHabits}
+                      showActionsColumn={showActionsColumn}
                       onUpdate={handleHabitUpdate}
                       onEdit={handleEditIntent}
                       onDelete={handleDeleteIntent}

@@ -4,7 +4,8 @@ import {
   getIsoDateLabel,
   getIsoDayNameShort,
 } from "../utils/dateLabels";
-import { isFutureIsoDate } from "../utils/dateUtils";
+import { isFutureIsoDate, getTodayIsoDate } from "../utils/dateUtils";
+import { isHabitScheduledOnDate } from "../utils/habitHelpers";
 import { buttonClassName } from "./ui.js";
 
 export default function HabitCardMobile({
@@ -24,6 +25,8 @@ export default function HabitCardMobile({
     const deletionIso = removalDate.toISOString().slice(0, 10);
     return `Eliminado el ${getIsoDayNameShort(deletionIso)} ${formatCompactDate(deletionIso)}`;
   })();
+
+  const todayIso = getTodayIsoDate();
 
   return (
     <article className="rounded-[14px] border border-ink/10 bg-paper-2 p-3">
@@ -48,30 +51,32 @@ export default function HabitCardMobile({
               status={habit.week[date]}
               onClick={() => onUpdate(habit.habit_id, date, habit.week[date])}
               isFuture={isFutureIsoDate(date)}
+              isToday={date === todayIso}
+              isScheduled={isHabitScheduledOnDate(habit, date)}
             />
           </div>
         ))}
       </div>
 
       {canShowActions ? (
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <button
-            onClick={() => onEdit(habit)}
-            disabled={!canManageHabits}
-            className={buttonClassName({ variant: "ghost", size: "sm", fullWidth: true })}
-            title={canManageHabits ? "Editar" : "Solo puedes editar o eliminar hábitos los domingos"}
-          >
-            Editar
-          </button>
-          <button
-            onClick={() => onDelete(habit)}
-            disabled={!canManageHabits}
-            className={buttonClassName({ variant: "danger", size: "sm", fullWidth: true })}
-            title={canManageHabits ? "Eliminar" : "Solo puedes editar o eliminar hábitos los domingos"}
-          >
-            Eliminar
-          </button>
-        </div>
+        canManageHabits && (
+          <div className="mt-3 grid grid-cols-2 gap-2 fade-up">
+            <button
+              onClick={() => onEdit(habit)}
+              className={buttonClassName({ variant: "ghost", size: "sm", fullWidth: true })}
+              title="Editar"
+            >
+              Editar
+            </button>
+            <button
+              onClick={() => onDelete(habit)}
+              className={buttonClassName({ variant: "danger", size: "sm", fullWidth: true })}
+              title="Eliminar"
+            >
+              Eliminar
+            </button>
+          </div>
+        )
       ) : (
         <div className="mt-3 flex justify-center">
           <p className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/8 text-ink-3 px-3 py-1 font-mono text-[10px]">

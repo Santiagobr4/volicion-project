@@ -1,8 +1,5 @@
-import {
-  buttonClassName,
-  modalBackdropClassName,
-  modalPanelClassName,
-} from "./ui.js";
+import Dialog from "./Dialog";
+import { buttonClassName } from "./ui.js";
 
 export default function HabitOrderModal({
   open,
@@ -12,15 +9,11 @@ export default function HabitOrderModal({
   onClose,
   onSave,
 }) {
-  if (!open) return null;
-
   return (
-    <div className={modalBackdropClassName}>
-      <div className={`${modalPanelClassName} max-w-lg p-5`}>
-        <h3 className="font-serif text-[28px] leading-tight">Ordenar hábitos</h3>
-        <p className="text-sm text-ink-3 mt-1 mb-4">
-          Reordena tus hábitos activos y guarda los cambios.
-        </p>
+    <Dialog open={open} onClose={onClose} title="Ordenar hábitos" panelClassName="max-w-lg p-5">
+      <p className="text-sm text-ink-3 mt-1 mb-4">
+        Reordena tus hábitos activos y guarda los cambios.
+      </p>
 
         <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
           {order.map((habitId, index) => {
@@ -38,7 +31,8 @@ export default function HabitOrderModal({
                     type="button"
                     onClick={() => onMove(habitId, -1)}
                     disabled={index === 0}
-                    className="w-8 h-8 rounded-full border border-ink/15 text-xs hover:bg-paper-3 transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                    aria-label={`Mover ${habit.name} arriba`}
+                    className="w-11 h-11 rounded-full border border-ink/15 text-sm hover:bg-paper-3 transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/30"
                     title="Mover arriba"
                   >
                     ↑
@@ -47,7 +41,8 @@ export default function HabitOrderModal({
                     type="button"
                     onClick={() => onMove(habitId, 1)}
                     disabled={index === order.length - 1}
-                    className="w-8 h-8 rounded-full border border-ink/15 text-xs hover:bg-paper-3 transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                    aria-label={`Mover ${habit.name} abajo`}
+                    className="w-11 h-11 rounded-full border border-ink/15 text-sm hover:bg-paper-3 transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/30"
                     title="Mover abajo"
                   >
                     ↓
@@ -58,23 +53,22 @@ export default function HabitOrderModal({
           })}
         </div>
 
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className={buttonClassName({ variant: "ghost", size: "sm" })}
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={onSave}
-            className={buttonClassName({ variant: "primary", size: "sm" })}
-          >
-            Guardar orden
-          </button>
-        </div>
+      <div className="mt-5 flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={onClose}
+          className={buttonClassName({ variant: "ghost", size: "sm" })}
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          onClick={onSave}
+          className={buttonClassName({ variant: "primary", size: "sm" })}
+        >
+          Guardar orden
+        </button>
       </div>
-    </div>
+    </Dialog>
   );
 }

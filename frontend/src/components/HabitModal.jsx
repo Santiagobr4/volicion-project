@@ -1,10 +1,10 @@
-import { useMemo, useRef, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
+import Dialog from "./Dialog";
 import { capitalizeDayCode } from "../utils/dateLabels";
 import {
   buttonClassName,
   inputClassName,
-  modalBackdropClassName,
-  modalPanelClassName,
+  labelClassName,
 } from "./ui.js";
 
 const WEEK_DAYS = [
@@ -85,86 +85,90 @@ export default function HabitModal({ open, onClose, onSubmit, initialData }) {
     onClose();
   };
 
-  if (!open) return null;
+  const nameInputId = useId();
 
   return (
-    <div className={modalBackdropClassName}>
-      <div className={`${modalPanelClassName} max-w-md p-5 sm:p-6`}>
-        <h2 className="font-serif text-[28px] leading-tight mb-1">
-          {initialData ? "Editar hábito" : "Crear hábito"}
-        </h2>
-        <p className="text-sm text-ink-3 mb-5">
-          Define los días en los que se seguirá este hábito.
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title={initialData ? "Editar hábito" : "Crear hábito"}
+      panelClassName="max-w-md p-5 sm:p-6"
+    >
+      <p className="text-sm text-ink-3 mt-1 mb-5">
+        Define los días en los que se seguirá este hábito.
+      </p>
+      {!initialData && (
+        <p className="text-sm text-ink-2 mb-4 rounded-[10px] border border-gold/25 bg-gold/8 px-3 py-2">
+          Los hábitos nuevos empiezan a contar desde el lunes de la próxima semana.
         </p>
-        {!initialData && (
-          <p className="text-sm text-ink-2 mb-4 rounded-[10px] border border-gold/25 bg-gold/8 px-3 py-2">
-            Los hábitos nuevos empiezan a contar desde el lunes de la próxima semana.
-          </p>
-        )}
+      )}
 
-        <input
-          type="text"
-          placeholder="Nombre del hábito"
-          className={`${inputClassName} mb-1`}
-          value={habit.name}
-          disabled={!!initialData}
-          onChange={(e) => setHabit((prev) => ({ ...prev, name: e.target.value }))}
-        />
-        {initialData && (
-          <p className="text-xs text-ink-4 mb-4">
-            El nombre del hábito no se puede editar. Solo puedes cambiar los días.
-          </p>
-        )}
+      <label htmlFor={nameInputId} className={`${labelClassName} block mb-1`}>
+        Nombre del hábito
+      </label>
+      <input
+        id={nameInputId}
+        type="text"
+        placeholder="Nombre del hábito"
+        className={`${inputClassName} mb-1`}
+        value={habit.name}
+        disabled={!!initialData}
+        onChange={(e) => setHabit((prev) => ({ ...prev, name: e.target.value }))}
+      />
+      {initialData && (
+        <p className="text-xs text-ink-4 mb-4">
+          El nombre del hábito no se puede editar. Solo puedes cambiar los días.
+        </p>
+      )}
 
-        <div className="mb-2">
+      <div className="mb-2">
+        <button
+          type="button"
+          onClick={toggleAllDays}
+          className={buttonClassName({
+            variant: allDaysSelected ? "primary" : "secondary",
+            fullWidth: true,
+          })}
+        >
+          Todos los días
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
+        {WEEK_DAYS.map((day) => (
           <button
             type="button"
-            onClick={toggleAllDays}
+            key={day}
+            onClick={() => toggleDay(day)}
             className={buttonClassName({
-              variant: allDaysSelected ? "primary" : "secondary",
+              variant: habit.days.includes(day) ? "primary" : "secondary",
+              size: "sm",
               fullWidth: true,
             })}
           >
-            Todos los días
+            {capitalizeDayCode(day)}
           </button>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
-          {WEEK_DAYS.map((day) => (
-            <button
-              type="button"
-              key={day}
-              onClick={() => toggleDay(day)}
-              className={buttonClassName({
-                variant: habit.days.includes(day) ? "primary" : "secondary",
-                size: "sm",
-                fullWidth: true,
-              })}
-            >
-              {capitalizeDayCode(day)}
-            </button>
-          ))}
-        </div>
-
-        {formError && <p className="text-sm text-signal mb-4">{formError}</p>}
-
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className={buttonClassName({ variant: "ghost", size: "sm" })}
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            className={buttonClassName({ variant: "primary", size: "sm" })}
-          >
-            {initialData ? "Guardar cambios" : "Crear"}
-          </button>
-        </div>
+        ))}
       </div>
-    </div>
+
+      {formError && <p className="text-sm text-signal mb-4">{formError}</p>}
+
+      <div className="flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={onClose}
+          className={buttonClassName({ variant: "ghost", size: "sm" })}
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          onClick={handleSubmit}
+          className={buttonClassName({ variant: "primary", size: "sm" })}
+        >
+          {initialData ? "Guardar cambios" : "Crear"}
+        </button>
+      </div>
+    </Dialog>
   );
 }

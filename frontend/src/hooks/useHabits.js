@@ -57,7 +57,7 @@ export const useHabits = ({ onDataChanged } = {}) => {
   const canGoPrev = minimumWeekStart ? startDate > minimumWeekStart : true;
   const canGoNext = startDate < getMaxFutureWeekStart();
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (signal) => {
     try {
       if (firstLoadRef.current) {
         setLoading(true);
@@ -67,9 +67,11 @@ export const useHabits = ({ onDataChanged } = {}) => {
       setError(null);
 
       const [res, metrics] = await Promise.all([
-        getWeekly(startDate),
-        getTrackerMetrics(startDate),
+        getWeekly(startDate, { signal }),
+        getTrackerMetrics(startDate, { signal }),
       ]);
+
+      if (signal?.aborted) return;
 
       setData(res.habits || []);
       setTrackerMetrics(metrics);
@@ -80,17 +82,24 @@ export const useHabits = ({ onDataChanged } = {}) => {
         setDates([]);
       }
     } catch (err) {
+      if (err?.name === "CanceledError" || err?.code === "ERR_CANCELED") {
+        return;
+      }
       console.error("Fetch error:", err);
       setError("No pudimos cargar tus datos");
     } finally {
-      setLoading(false);
-      setRefreshing(false);
-      firstLoadRef.current = false;
+      if (!signal?.aborted) {
+        setLoading(false);
+        setRefreshing(false);
+        firstLoadRef.current = false;
+      }
     }
   }, [startDate]);
 
   useEffect(() => {
-    fetchData();
+    const controller = new AbortController();
+    fetchData(controller.signal);
+    return () => controller.abort();
   }, [fetchData]);
 
   const changeWeek = (dir) => {

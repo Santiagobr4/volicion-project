@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { confirmPasswordReset, getApiErrorMessage } from "../api/auth";
+import PageBrandHeader from "../components/PageBrandHeader";
 import {
   buttonClassName,
   helpTextClassName,
@@ -77,16 +78,18 @@ export default function ResetPasswordPage() {
   };
 
   return (
+    <>
+    <PageBrandHeader />
     <section
-      className={`${panelShellClassName} max-w-xl mx-auto p-5 sm:p-6 md:p-8`}
+      className={`${panelShellClassName} max-w-xl mx-auto mt-12 mb-20 p-5 sm:p-6 md:p-8 page-fade`}
     >
-      <p className="text-xs uppercase tracking-[0.22em] text-slate-500 dark:text-slate-300">
+      <span className="font-mono text-[11px] tracking-[0.12em] uppercase text-ink-3">
         VOLICION
-      </p>
-      <h1 className="mt-3 text-3xl font-semibold tracking-tight">
+      </span>
+      <h1 className="font-serif text-[length:var(--text-h1)] leading-[0.98] tracking-[-0.025em] mt-3">
         Restablecer contraseña
       </h1>
-      <p className={`mt-2 ${helpTextClassName}`}>
+      <p className={`mt-3 ${helpTextClassName}`}>
         Ingresa tu nueva contraseña para recuperar el acceso a tu cuenta.
       </p>
 
@@ -98,8 +101,8 @@ export default function ResetPasswordPage() {
       )}
 
       <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-        <div>
-          <label className={`${labelClassName} mb-1`}>Nueva contraseña</label>
+        <label className="block">
+          <span className={`${labelClassName} block mb-1`}>Nueva contraseña</span>
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
@@ -121,12 +124,12 @@ export default function ResetPasswordPage() {
               {showPassword ? "Ocultar" : "Mostrar"}
             </button>
           </div>
-        </div>
+        </label>
 
-        <div>
-          <label className={`${labelClassName} mb-1`}>
+        <label className="block">
+          <span className={`${labelClassName} block mb-1`}>
             Confirmar contraseña
-          </label>
+          </span>
           <div className="relative">
             <input
               type={showConfirmPassword ? "text" : "password"}
@@ -148,7 +151,7 @@ export default function ResetPasswordPage() {
               {showConfirmPassword ? "Ocultar" : "Mostrar"}
             </button>
           </div>
-        </div>
+        </label>
 
         {error && (
           <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300">
@@ -177,5 +180,6 @@ export default function ResetPasswordPage() {
         </div>
       </form>
     </section>
+    </>
   );
 }

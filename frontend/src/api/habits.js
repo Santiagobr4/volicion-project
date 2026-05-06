@@ -19,33 +19,33 @@ const buildQueryString = (params) => {
 /**
  * Fetch tracker matrix for a specific week start date.
  */
-export const getWeekly = async (date) => {
+export const getWeekly = async (date, { signal } = {}) => {
   const query = buildQueryString({ start_date: date, _ts: Date.now() });
-  const res = await api.get(`/habits/weekly/${query}`);
+  const res = await api.get(`/habits/weekly/${query}`, { signal });
   return res.data;
 };
 
 /**
  * Fetch historical metrics for a preset day window.
  */
-export const getHistory = async ({ days = 90 } = {}) => {
+export const getHistory = async ({ days = 90, signal } = {}) => {
   const query = buildQueryString({ days, _ts: Date.now() });
-  const res = await api.get(`/habits/history/${query}`);
+  const res = await api.get(`/habits/history/${query}`, { signal });
   return res.data;
 };
 
 /**
  * Fetch compact tracker insights for a week.
  */
-export const getTrackerMetrics = async (startDate) => {
+export const getTrackerMetrics = async (startDate, { signal } = {}) => {
   const query = buildQueryString({ start_date: startDate, _ts: Date.now() });
-  const res = await api.get(`/habits/tracker-metrics/${query}`);
+  const res = await api.get(`/habits/tracker-metrics/${query}`, { signal });
   return res.data;
 };
 
-export const getLeaderboard = async () => {
+export const getLeaderboard = async ({ signal } = {}) => {
   const query = buildQueryString({ _ts: Date.now() });
-  const res = await api.get(`/habits/leaderboard/${query}`);
+  const res = await api.get(`/habits/leaderboard/${query}`, { signal });
   return res.data;
 };
 
