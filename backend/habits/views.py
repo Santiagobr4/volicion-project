@@ -421,36 +421,70 @@ def _overall_completion(rows):
     return round((total_done / total_applicable) * 100, 0)
 
 
-def _compute_habit_streaks(habit, schedule_map, logs_map, end_date):
-    """Compute current and best streak for a habit up to a target date."""
+def _compute_habit_streaks(habit, schedule_map, status_by_date, end_date):
+    """Compute current and best streak for a habit up to a target date.
+
+    `status_by_date` maps `(habit_id, "YYYY-MM-DD") -> status_string`
+    ("done" | "missed" | "skip" | "pending"), covering at least every day
+    from `habit.start_date` to `end_date`.
+
+    Streak rules:
+      - "done"   counts toward the streak.
+      - "skip"   is neutral (doesn't count, doesn't break) — the habit
+                 wasn't applicable that day.
+      - "missed" breaks the streak.
+      - "pending"/no log on a past day breaks the streak.
+      - "pending"/no log on `end_date` (today) is neutral — the day is
+                 still in progress, so it shouldn't penalise the user.
+    """
     applicable_dates = []
     cursor = habit.start_date
 
     while cursor <= end_date:
+        if not _habit_is_active_on_date(habit, cursor):
+            cursor += timedelta(days=1)
+            continue
         weekday = _weekday_name(cursor)
         active_days = _days_for_habit_on_date(habit, cursor, schedule_map)
-        if weekday in active_days or logs_map.get((habit.id, str(cursor))):
+        if weekday in active_days:
             applicable_dates.append(cursor)
         cursor += timedelta(days=1)
 
     if not applicable_dates:
         return {"streak_current": 0, "streak_best": 0}
 
+    def get_status(habit_id, target_date):
+        return status_by_date.get((habit_id, str(target_date)))
+
+    # Best streak: walk forward, count consecutive "done" days,
+    # treat "skip" as neutral, reset on missed / pending(past).
     best_streak = 0
     running = 0
+    today = end_date
     for current_date in applicable_dates:
-        status_value = logs_map.get((habit.id, str(current_date)))
-        if status_value == "done":
+        status = get_status(habit.id, current_date)
+        if status == "done":
             running += 1
             best_streak = max(best_streak, running)
+        elif status == "skip":
+            continue
+        elif (status is None or status == "pending") and current_date >= today:
+            # today still in progress — neutral, don't break the streak
+            continue
         else:
             running = 0
 
+    # Current streak: walk backward, allow today's pending state to be neutral,
+    # break on a real miss or past pending.
     current_streak = 0
     for current_date in reversed(applicable_dates):
-        status_value = logs_map.get((habit.id, str(current_date)))
-        if status_value == "done":
+        status = get_status(habit.id, current_date)
+        if status == "done":
             current_streak += 1
+        elif status == "skip":
+            continue
+        elif (status is None or status == "pending") and current_date >= today:
+            continue
         else:
             break
 
@@ -625,6 +659,21 @@ class HabitViewSet(viewsets.ModelViewSet):
 
         logs_map = {(log.habit_id, str(log.date)): log for log in logs}
 
+        # Build a wider status map (from earliest habit start to today) so the
+        # streak computation can see history beyond just the displayed week.
+        today_local = timezone.localdate()
+        if habits:
+            earliest_start = min(habit.start_date for habit in habits)
+            streak_logs = HabitLog.objects.filter(
+                habit__user=request.user,
+                date__range=(earliest_start, today_local),
+            ).only("habit_id", "date", "status")
+            streak_status_map = {
+                (log.habit_id, str(log.date)): log.status for log in streak_logs
+            }
+        else:
+            streak_status_map = {}
+
         daily_stats = {str(date): {"done": 0, "total": 0} for date in week_dates}
 
         for habit in habits:
@@ -681,8 +730,8 @@ class HabitViewSet(viewsets.ModelViewSet):
             streaks = _compute_habit_streaks(
                 habit,
                 schedule_map,
-                logs_map,
-                timezone.localdate(),
+                streak_status_map,
+                today_local,
             )
 
             pending_removal = False

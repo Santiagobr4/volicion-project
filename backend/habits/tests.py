@@ -366,6 +366,56 @@ class HabitApiTests(APITestCase):
 		self.assertIn('streak_current', response.data['habits'][0])
 		self.assertIn('streak_best', response.data['habits'][0])
 
+	def test_streak_counts_consecutive_done_days(self):
+		"""Several consecutive 'done' logs should produce a non-zero streak."""
+		self.authenticate('alice', 'Passw0rd123')
+
+		# Habit is Mon-Fri starting on this week's Monday. Mark Mon..today done.
+		monday = self.week_start
+		days_done = []
+		cursor = monday
+		while cursor <= self.today and cursor.weekday() < 5:
+			HabitLog.objects.create(
+				habit=self.habit_user_1,
+				date=str(cursor),
+				status='done',
+			)
+			days_done.append(cursor)
+			cursor += timedelta(days=1)
+
+		response = self.client.get(f'/api/habits/weekly/?start_date={self.week_start}')
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+		habit_row = response.data['habits'][0]
+		self.assertEqual(habit_row['streak_current'], len(days_done))
+		self.assertEqual(habit_row['streak_best'], len(days_done))
+
+	def test_streak_today_pending_does_not_break_streak(self):
+		"""A pending status today should be neutral, not reset the streak."""
+		self.authenticate('alice', 'Passw0rd123')
+
+		# Mark every prior weekday this week as done; today stays pending.
+		monday = self.week_start
+		days_done = []
+		cursor = monday
+		while cursor < self.today and cursor.weekday() < 5:
+			HabitLog.objects.create(
+				habit=self.habit_user_1,
+				date=str(cursor),
+				status='done',
+			)
+			days_done.append(cursor)
+			cursor += timedelta(days=1)
+
+		# Skip the test if today isn't a weekday for this habit (no pending day).
+		if self.today.weekday() >= 5 or not days_done:
+			return
+
+		response = self.client.get(f'/api/habits/weekly/?start_date={self.week_start}')
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+		habit_row = response.data['habits'][0]
+		# Today is still pending — should not break the streak.
+		self.assertEqual(habit_row['streak_current'], len(days_done))
+
 	def test_tracker_metrics_endpoint(self):
 		self.authenticate('alice', 'Passw0rd123')
 
