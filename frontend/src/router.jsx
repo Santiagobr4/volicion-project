@@ -3,6 +3,7 @@ import App from "./App.jsx";
 import AppLayout from "./components/AppLayout";
 import BrowserStoragePage from "./pages/legal/BrowserStoragePage";
 import DataPolicyPage from "./pages/legal/DataPolicyPage";
+import HowItWorksPage from "./pages/HowItWorksPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import UsageTermsPage from "./pages/legal/UsageTermsPage";
 
@@ -13,6 +14,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <App /> },
       { path: "reset-password", element: <ResetPasswordPage /> },
+      { path: "how-it-works", element: <HowItWorksPage /> },
       { path: "terms", element: <UsageTermsPage /> },
       { path: "privacy", element: <DataPolicyPage /> },
       { path: "cookies", element: <BrowserStoragePage /> },
