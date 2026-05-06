@@ -1,0 +1,20 @@
+{
+  "name": "VOLICION",
+  "short_name": "VOLICION",
+  "description": "Gestiona tus hábitos diarios, semanales y mensuales con claridad.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FAFAF7",
+  "theme_color": "#161513",
+  "lang": "es",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ]
+}
