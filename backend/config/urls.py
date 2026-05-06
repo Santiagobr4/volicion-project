@@ -19,7 +19,6 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
-from habits.health import healthz
 from habits.views import (
     CaseInsensitiveTokenObtainPairView,
     CookieTokenRefreshView,
@@ -40,7 +39,6 @@ router.register(r'logs', HabitLogViewSet, basename='habitlog')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/healthz', healthz, name='healthz'),
     path('api/', include(router.urls)),
     path('api/register/', RegisterView.as_view(), name='register'),
     path('api/profile/', ProfileView.as_view(), name='profile'),

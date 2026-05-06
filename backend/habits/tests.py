@@ -1058,17 +1058,3 @@ class HabitApiTests(APITestCase):
 
 		self.assertEqual(response.status_code, status.HTTP_200_OK)
 		self.assertIn('detail', response.data)
-
-
-class HealthzTests(APITestCase):
-	def test_healthz_returns_200_when_db_and_cache_ok(self):
-		response = self.client.get('/api/healthz')
-		self.assertEqual(response.status_code, 200)
-		body = response.json()
-		self.assertEqual(body['status'], 'ok')
-		self.assertEqual(body['checks']['db'], 'ok')
-		self.assertEqual(body['checks']['cache'], 'ok')
-
-	def test_healthz_rejects_post(self):
-		response = self.client.post('/api/healthz')
-		self.assertEqual(response.status_code, 405)
